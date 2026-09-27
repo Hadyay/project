@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,11 +28,29 @@ class UserOut(ORMModel):
     created_at: datetime
 
 
+class Preferences(BaseModel):
+    """Interface choices saved on the user. Unknown keys in the stored JSON
+    are ignored and missing ones take these defaults."""
+
+    # light by default: the office knows the light app; "auto" (follow Windows)
+    # is a choice, never imposed on a first login.
+    theme: Literal["light", "dark", "auto"] = "light"
+    lang: Literal["ar", "en"] = "ar"
+    simple_mode: bool = False
+
+
+class PreferencesUpdate(BaseModel):
+    theme: Literal["light", "dark", "auto"] | None = None
+    lang: Literal["ar", "en"] | None = None
+    simple_mode: bool | None = None
+
+
 class Me(UserOut):
     """The signed-in user with what they may do — the frontend shows only
     those screens and buttons (the API still checks every request)."""
 
     permissions: list[str]
+    preferences: Preferences
 
 
 class UserCreate(BaseModel):

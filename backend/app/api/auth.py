@@ -12,6 +12,8 @@ from app.models import Role, User
 from app.schemas.auth import (
     Me,
     PasswordChange,
+    Preferences,
+    PreferencesUpdate,
     PermissionModule,
     RoleCreate,
     RoleOut,
@@ -43,10 +45,36 @@ def login(db: DbSession, form: Annotated[OAuth2PasswordRequestForm, Depends()]) 
     return Token(access_token=create_access_token(user.username, user.role.code))
 
 
+def _preferences(user: User) -> Preferences:
+    """Stored choices over the defaults. Each key is checked on its own, so one
+    bad or retired value costs only itself and can never break /me."""
+    stored = user.preferences or {}
+    good = {}
+    for key in Preferences.model_fields:
+        if key in stored:
+            try:
+                Preferences(**{key: stored[key]})
+            except ValueError:
+                continue
+            good[key] = stored[key]
+    return Preferences(**good)
+
+
 @router.get("/me", response_model=Me)
 def me(user: CurrentUser) -> Me:
     base = UserOut.model_validate(user)
-    return Me(**base.model_dump(), permissions=sorted(permissions_of(user)))
+    return Me(**base.model_dump(), permissions=sorted(permissions_of(user)), preferences=_preferences(user))
+
+
+@router.put("/preferences", response_model=Preferences)
+def update_preferences(db: DbSession, payload: PreferencesUpdate, user: CurrentUser) -> Preferences:
+    """Your own theme / language / simple mode. Not permission-gated: it
+    changes nothing but how the screens look to you."""
+    merged = _preferences(user).model_dump() | payload.model_dump(exclude_unset=True, exclude_none=True)
+    user.preferences = Preferences(**merged).model_dump()
+    db.commit()
+    db.refresh(user)
+    return _preferences(user)
 
 
 @router.post("/change-password", response_model=Message)

@@ -60,5 +60,9 @@ class User(Base):
     role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("roles.id"), nullable=False)
     # Loaded with the user on every request, so a changed role applies at once.
     role: Mapped[Role] = relationship(lazy="joined")
+    # Per-person interface choices (theme, language, simple mode) — on the user,
+    # not in a browser, so they follow the person to any PC. Read through
+    # schemas.auth.Preferences, which fills the defaults.
+    preferences: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default="now()")
