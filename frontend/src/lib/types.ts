@@ -43,6 +43,15 @@ export interface User {
 /** GET /api/auth/me — the signed-in user and what they may do. Mirrors schemas.auth.Me. */
 export interface Me extends User {
   permissions: Permission[];
+  /** Absent from a backend older than migration 0009. */
+  preferences?: Preferences;
+}
+
+/** The user's interface choices. Mirrors schemas.auth.Preferences. */
+export interface Preferences {
+  theme: "light" | "dark" | "auto";
+  lang: "ar" | "en";
+  simple_mode: boolean;
 }
 
 /** A role and its permissions (the system role lists every one). Mirrors schemas.auth.RoleOut. */

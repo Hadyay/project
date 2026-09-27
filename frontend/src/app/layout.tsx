@@ -6,6 +6,7 @@ import { ConfirmProvider } from "@/components/Confirm";
 import { ToastProvider } from "@/components/Toast";
 import { AuthProvider } from "@/lib/auth";
 import { LangProvider } from "@/lib/i18n";
+import { PrefsProvider } from "@/lib/prefs";
 import { THEME_BOOT, ThemeProvider } from "@/lib/theme";
 import "./globals.css";
 import "./theme.css";
@@ -43,9 +44,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
-              <ToastProvider>
-                <ConfirmProvider>{children}</ConfirmProvider>
-              </ToastProvider>
+              <PrefsProvider>
+                <ToastProvider>
+                  <ConfirmProvider>{children}</ConfirmProvider>
+                </ToastProvider>
+              </PrefsProvider>
             </AuthProvider>
           </LangProvider>
         </ThemeProvider>

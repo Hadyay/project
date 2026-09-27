@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
 
 import { useConfirm } from "@/components/Confirm";
@@ -8,7 +8,8 @@ import { useToast } from "@/components/Toast";
 import { Async, Card, Doc, Empty, ErrorNote, Field, Head, Modal, Pill } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { count, isoDate, money, today } from "@/lib/format";
+import { usePrefs } from "@/lib/prefs";
+import { count, initial, isoDate, money, today } from "@/lib/format";
 import type {
   AlertSettings,
   AlertsSummary,
@@ -17,22 +18,52 @@ import type {
   OrgSettings,
   Permission,
   PermissionModule,
+  Preferences,
   Role,
   User,
 } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
-type Tab = "users" | "roles" | "account" | "org" | "rates" | "alerts";
+type Section = "profile" | "password" | "appearance" | "org" | "rates" | "alerts" | "users" | "roles";
 
-/** Each tab and the permission that opens it; حسابي is everyone's. */
-const TABS: { key: Tab; label: string; permission: Permission | null }[] = [
-  { key: "users", label: "المستخدمون", permission: "settings.users" },
-  { key: "roles", label: "الأدوار والصلاحيات", permission: "settings.users" },
-  { key: "account", label: "حسابي", permission: null },
-  { key: "org", label: "بيانات المنشأة", permission: "settings.org" },
-  { key: "rates", label: "أسعار الصرف", permission: "settings.rates" },
-  { key: "alerts", label: "التنبيهات", permission: "settings.alerts" },
+interface SectionDef {
+  key: Section;
+  label: string;
+  icon: string;
+  /** One line under the section title: what it is for. */
+  desc: string;
+  /** What opens it; null = everyone (your own account is nobody else's task). */
+  permission: Permission | null;
+}
+
+const GROUPS: { label: string; items: SectionDef[] }[] = [
+  {
+    label: "حسابي",
+    items: [
+      { key: "profile", label: "الملف الشخصي", icon: "◉", desc: "اسمك ودورك وصلاحياتك في النظام.", permission: null },
+      { key: "password", label: "كلمة المرور", icon: "⚿", desc: "غيّر كلمة مرورك — تُطلب الحالية أولاً.", permission: null },
+      { key: "appearance", label: "المظهر", icon: "◐", desc: "الوضع الفاتح أو الداكن، اللغة، والواجهة المبسّطة.", permission: null },
+    ],
+  },
+  {
+    label: "المنشأة",
+    items: [
+      { key: "org", label: "بيانات المنشأة", icon: "▣", desc: "الترويسة المطبوعة على كل سند وكشف وتقرير.", permission: "settings.org" },
+      { key: "rates", label: "أسعار الصرف", icon: "⇄", desc: "سعر الدولار بالليرة، لكل تاريخ.", permission: "settings.rates" },
+      { key: "alerts", label: "التنبيهات", icon: "🔔", desc: "يوم تنبيه الدفعات الشهرية وأقل رصيد يُنبَّه عليه.", permission: "settings.alerts" },
+    ],
+  },
+  {
+    label: "المستخدمون والصلاحيات",
+    items: [
+      { key: "users", label: "المستخدمون", icon: "👥", desc: "من يدخل النظام، ودوره، وكلمة مروره.", permission: "settings.users" },
+      { key: "roles", label: "الأدوار والصلاحيات", icon: "⛨", desc: "ما يستطيع كل دور أن يفتح ويفعل.", permission: "settings.users" },
+    ],
+  },
 ];
+
+/** Old ?tab= names keep working. */
+const ALIASES: Record<string, Section> = { account: "profile" };
 
 export default function SettingsPage() {
   return (
@@ -43,37 +74,91 @@ export default function SettingsPage() {
 }
 
 function SettingsInner() {
-  const { can, user } = useAuth();
-  // Everyone gets here: changing your own password is nobody else's task.
-  const visible = TABS.filter((t) => t.permission === null || can(t.permission));
-  // ?tab= opens a given tab (the alerts page links to ?tab=alerts).
-  const requested = useSearchParams().get("tab");
-  const [tab, setTab] = useState<Tab>(
-    visible.find((t) => t.key === requested)?.key ?? visible[0]?.key ?? "account",
-  );
+  const { can } = useAuth();
+  const router = useRouter();
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((t) => t.permission === null || can(t.permission)),
+  })).filter((g) => g.items.length > 0);
+  const visible = groups.flatMap((g) => g.items);
+  // ?tab= opens a given section (the alerts page links to ?tab=alerts).
+  const raw = useSearchParams().get("tab") ?? "";
+  const requested = ALIASES[raw] ?? raw;
+  const active = visible.find((t) => t.key === requested) ?? visible[0];
+
+  function open(key: Section) {
+    // In the URL, so a reload (or a link) lands on the same section.
+    router.replace(`/settings?tab=${key}`, { scroll: false });
+  }
 
   return (
     <>
-      <Head
-        title="الإعدادات والصلاحيات"
-        subtitle={`مسجّل الدخول: ${user?.full_name ?? user?.username} — ${user?.role.name ?? ""}`}
-      />
+      <Head title="الإعدادات" subtitle="حسابك، المنشأة، والمستخدمون وصلاحياتهم" />
 
-      <div className="tabs no-print">
-        {visible.map((t) => (
-          <button key={t.key} className={tab === t.key ? "on" : ""} onClick={() => setTab(t.key)}>
-            {t.label}
-          </button>
-        ))}
+      <div className="set-layout">
+        <nav className="set-nav no-print" aria-label="أقسام الإعدادات">
+          {groups.map((g) => (
+            <div className="set-group" key={g.label}>
+              <h6>{g.label}</h6>
+              {g.items.map((t) => (
+                <button key={t.key} className={active.key === t.key ? "on" : ""} onClick={() => open(t.key)}>
+                  <span className="si">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        <section className="set-main">
+          <div className="set-head">
+            <span className="si">{active.icon}</span>
+            <div>
+              <h2>{active.label}</h2>
+              <p>{active.desc}</p>
+            </div>
+          </div>
+          {active.key === "profile" ? <ProfilePanel /> : null}
+          {active.key === "password" ? <PasswordPanel /> : null}
+          {active.key === "appearance" ? <AppearancePanel /> : null}
+          {active.key === "users" && can("settings.users") ? <UsersPanel /> : null}
+          {active.key === "roles" && can("settings.users") ? <RolesPanel /> : null}
+          {active.key === "org" && can("settings.org") ? <OrgPanel /> : null}
+          {active.key === "rates" && can("settings.rates") ? <RatesPanel /> : null}
+          {active.key === "alerts" && can("settings.alerts") ? <AlertsPanel /> : null}
+        </section>
       </div>
-
-      {tab === "users" && can("settings.users") ? <UsersPanel /> : null}
-      {tab === "roles" && can("settings.users") ? <RolesPanel /> : null}
-      {tab === "account" ? <MyAccountPanel /> : null}
-      {tab === "org" && can("settings.org") ? <OrgPanel /> : null}
-      {tab === "rates" && can("settings.rates") ? <RatesPanel /> : null}
-      {tab === "alerts" && can("settings.alerts") ? <AlertsPanel /> : null}
     </>
+  );
+}
+
+/** Pinned to the bottom of the screen while a form has unsaved changes —
+ *  and only then, so an untouched form has nothing to press. */
+function SaveBar({
+  dirty,
+  busy,
+  disabled,
+  onSave,
+  onReset,
+}: {
+  dirty: boolean;
+  busy: boolean;
+  disabled?: boolean;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  if (!dirty) return null;
+  return (
+    <div className="save-bar no-print" role="region" aria-label="تغييرات غير محفوظة">
+      <span className="dot-live" />
+      <span className="grow">لديك تغييرات غير محفوظة</span>
+      <button className="btn" onClick={onReset} disabled={busy}>
+        تراجع
+      </button>
+      <button className="btn primary" onClick={onSave} disabled={busy || disabled}>
+        {busy ? "جارٍ الحفظ…" : "حفظ التغييرات"}
+      </button>
+    </div>
   );
 }
 
@@ -741,10 +826,83 @@ function ResetPasswordForm({
 
 /* ------------------------------------------------------------------ حسابي */
 
+function ProfilePanel() {
+  const { user } = useAuth();
+  const catalog = useApi(useCallback(() => api.get<PermissionModule[]>("/api/roles/permissions"), []), []);
+  const mine = new Set<string>(user?.permissions ?? []);
+  const modules = (catalog.data ?? []).filter((m) => m.actions.some((a) => mine.has(a.code)));
+  const name = user?.full_name ?? user?.username ?? "";
+
+  return (
+    <div className="grid-2" style={{ alignItems: "start" }}>
+      <Card title="بياناتي">
+        <div className="card-b">
+          <div className="profile-card">
+            <div className="avatar big">{initial(name)}</div>
+            <div>
+              <b style={{ fontSize: 17 }} translate="no">
+                {name}
+              </b>
+              <div className="sub">
+                <span className="mono">{user?.username}</span> · <span translate="no">{user?.role.name}</span>
+              </div>
+            </div>
+          </div>
+          <div className="kv">
+            <span>اسم المستخدم</span>
+            <b className="mono">{user?.username}</b>
+          </div>
+          <div className="kv">
+            <span>الاسم الكامل</span>
+            <b translate="no">{user?.full_name ?? "—"}</b>
+          </div>
+          <div className="kv">
+            <span>الدور</span>
+            <b translate="no">{user?.role.name ?? "—"}</b>
+          </div>
+          <div className="kv">
+            <span>تاريخ الإنشاء</span>
+            <b className="mono">{isoDate(user?.created_at)}</b>
+          </div>
+          <div className="note" style={{ marginTop: 12, marginBottom: 0 }}>
+            <span>◈</span>
+            <span>الاسم والدور يغيّرهما مدير النظام من «المستخدمون».</span>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="ما يمكنني فعله" actions={<span className="sub">{`${mine.size} صلاحية`}</span>}>
+        <div className="card-b">
+          {modules.length === 0 ? (
+            <div className="sub">—</div>
+          ) : (
+            <div className="perm-list">
+              {modules.map((m) => (
+                <div key={m.module} className="perm-list-row">
+                  <b>{m.label}</b>
+                  <span className="perm-actions">
+                    {m.actions
+                      .filter((a) => mine.has(a.code))
+                      .map((a) => (
+                        <span key={a.code} className="perm-chip on static">
+                          {a.label}
+                        </span>
+                      ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 /** Changing your own password. Needs the current one, so a borrowed session
  *  cannot lock the real owner out. */
-function MyAccountPanel() {
-  const { user, logout } = useAuth();
+function PasswordPanel() {
+  const { logout } = useAuth();
   const toast = useToast();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -779,54 +937,121 @@ function MyAccountPanel() {
   }
 
   return (
-    <div className="grid-2">
+    <div style={{ maxWidth: 560 }}>
       <Card title="تغيير كلمة المرور">
         <div className="card-b">
           {error ? <ErrorNote message={error} /> : null}
 
           <Field label="كلمة المرور الحالية">
-            <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <input
+              type="password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              autoComplete="current-password"
+            />
           </Field>
-          <Field
-            label="كلمة المرور الجديدة"
-            hint="٦ أحرف على الأقل"
-            error={weak ? "قصيرة جداً" : undefined}
-          >
-            <input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+          <Field label="كلمة المرور الجديدة" hint="٦ أحرف على الأقل" error={weak ? "قصيرة جداً" : undefined}>
+            <input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
           </Field>
           <Field label="تأكيد كلمة المرور" error={mismatch ? "لا تطابق" : undefined}>
-            <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} />
+            <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} autoComplete="new-password" />
           </Field>
 
-          <button className="btn primary" onClick={save} disabled={busy || !ready} style={{ marginTop: 6 }}>
+          <div className="note" style={{ margin: "10px 0" }}>
+            <span>◈</span>
+            <span>بعد التغيير يُسجَّل خروجك، وتدخل من جديد بكلمة المرور الجديدة.</span>
+          </div>
+
+          <button className="btn primary" onClick={save} disabled={busy || !ready}>
             {busy ? "جارٍ الحفظ…" : "تغيير كلمة المرور"}
           </button>
         </div>
       </Card>
+    </div>
+  );
+}
 
-      <Card title="حسابي">
+/** Theme, language and simple mode: applied at once, saved on the user. */
+function AppearancePanel() {
+  const { prefs, update } = usePrefs();
+  const toast = useToast();
+
+  async function set(patch: Partial<Preferences>) {
+    toast.ok((await update(patch)) ? "حُفظ — يتبعك على أي جهاز تدخل منه" : "طُبّق على هذا الجهاز");
+  }
+
+  const themes: { key: Preferences["theme"]; label: string; hint: string }[] = [
+    { key: "light", label: "فاتح", hint: "خلفية بيضاء — للمكتب نهاراً" },
+    { key: "dark", label: "داكن", hint: "أريح للعين في الإضاءة الخافتة" },
+    { key: "auto", label: "تلقائي", hint: "يتبع إعداد Windows" },
+  ];
+
+  return (
+    <div className="stack">
+      <Card title="الوضع">
         <div className="card-b">
-          <div className="kv">
-            <span>اسم المستخدم</span>
-            <b className="mono">{user?.username}</b>
+          <div className="choice-cards">
+            {themes.map((t) => (
+              <button
+                key={t.key}
+                className={`choice${prefs.theme === t.key ? " on" : ""}`}
+                onClick={() => set({ theme: t.key })}
+                aria-pressed={prefs.theme === t.key}
+              >
+                <span className={`theme-swatch ${t.key}`}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <b>{t.label}</b>
+                <span className="sub">{t.hint}</span>
+              </button>
+            ))}
           </div>
-          <div className="kv">
-            <span>الاسم الكامل</span>
-            <b>{user?.full_name ?? "—"}</b>
-          </div>
-          <div className="kv">
-            <span>الدور</span>
-            <b translate="no">{user?.role.name ?? "—"}</b>
-          </div>
-          <div className="kv">
-            <span>تاريخ الإنشاء</span>
-            <b className="mono">{isoDate(user?.created_at)}</b>
-          </div>
+          <p className="sub" style={{ marginTop: 10 }}>
+            الطباعة بالأبيض دائماً، أياً كان الوضع على الشاشة.
+          </p>
+        </div>
+      </Card>
 
-          <div className="note" style={{ marginTop: 12 }}>
-            <span>◈</span>
-            <span>الاسم والدور يغيّرهما مدير النظام من تبويب المستخدمين.</span>
+      <Card title="اللغة">
+        <div className="card-b">
+          <div className="choice-cards two" translate="no">
+            <button className={`choice${prefs.lang === "ar" ? " on" : ""}`} onClick={() => set({ lang: "ar" })}>
+              <span className="lang-mark">ع</span>
+              <b>العربية</b>
+              <span className="sub">من اليمين إلى اليسار</span>
+            </button>
+            <button className={`choice${prefs.lang === "en" ? " on" : ""}`} onClick={() => set({ lang: "en" })}>
+              <span className="lang-mark">EN</span>
+              <b>English</b>
+              <span className="sub">Left to right</span>
+            </button>
           </div>
+        </div>
+      </Card>
+
+      <Card title="الواجهة المبسّطة">
+        <div className="card-b">
+          <label className="switch-row">
+            <span className={`switch${prefs.simple_mode ? " on" : ""}`}>
+              <input
+                type="checkbox"
+                checked={prefs.simple_mode}
+                onChange={(e) => set({ simple_mode: e.target.checked })}
+              />
+              <span className="sw-track">
+                <span className="sw-knob" />
+              </span>
+            </span>
+            <span>
+              <b>القائمة تعرض الشاشات اليومية فقط</b>
+              <span className="sub" style={{ display: "block" }}>
+                لوحة التحكم، العملاء، كشف حساب، الوصولات، المدفوعات، جدول الدفعات، التنبيهات، التقارير —
+                والباقي تحت «المزيد». الصلاحيات لا تتغيّر.
+              </span>
+            </span>
+          </label>
         </div>
       </Card>
     </div>
@@ -841,18 +1066,22 @@ function OrgPanel() {
   const state = useApi(useCallback(() => api.get<OrgSettings>("/api/org-settings"), []), []);
 
   return (
-    <Async state={state}>{(org) => <OrgForm key={org.updated_at} org={org} toast={toast} />}</Async>
+    <Async state={state}>
+      {(org) => <OrgForm key={org.updated_at} org={org} toast={toast} onSaved={state.reload} />}
+    </Async>
   );
 }
 
 function OrgForm({
   org,
   toast,
+  onSaved,
 }: {
   org: OrgSettings;
   toast: { ok: (m: string) => void; err: (m: string) => void };
+  onSaved: () => void;
 }) {
-  const [form, setForm] = useState({
+  const saved = {
     name: org.name,
     subtitle: org.subtitle ?? "",
     address: org.address ?? "",
@@ -860,8 +1089,10 @@ function OrgForm({
     email: org.email ?? "",
     tax_no: org.tax_no ?? "",
     footer_note: org.footer_note ?? "",
-  });
+  };
+  const [form, setForm] = useState(saved);
   const [logo, setLogo] = useState<string | null>(org.logo);
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved) || logo !== org.logo;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -901,6 +1132,7 @@ function OrgForm({
         logo: logo || null,
       });
       toast.ok("حُفظت بيانات المنشأة");
+      onSaved();
     } catch (err) {
       const message = err instanceof Error ? err.message : "تعذّر الحفظ";
       setError(message);
@@ -974,9 +1206,6 @@ function OrgForm({
             </div>
           </Field>
 
-          <button className="btn primary" onClick={save} disabled={busy || !form.name.trim()}>
-            {busy ? "جارٍ الحفظ…" : "حفظ"}
-          </button>
         </div>
       </Card>
 
@@ -1012,6 +1241,20 @@ function OrgForm({
           </div>
         </div>
       </Card>
+
+      <div style={{ gridColumn: "1 / -1" }}>
+        <SaveBar
+          dirty={dirty}
+          busy={busy}
+          disabled={!form.name.trim()}
+          onSave={save}
+          onReset={() => {
+            setForm(saved);
+            setLogo(org.logo);
+            setError(null);
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -1099,9 +1342,6 @@ function AlertsPanel() {
               />
             </Field>
 
-            <button className="btn primary" onClick={save} disabled={busy || form === null}>
-              {busy ? "جارٍ الحفظ…" : "حفظ"}
-            </button>
           </>
         )}
       </Card>
@@ -1126,6 +1366,18 @@ function AlertsPanel() {
           </div>
         ) : null}
       </Card>
+
+      <div style={{ gridColumn: "1 / -1" }}>
+        <SaveBar
+          dirty={form !== null}
+          busy={busy}
+          onSave={save}
+          onReset={() => {
+            setForm(null);
+            setError(null);
+          }}
+        />
+      </div>
     </div>
   );
 }

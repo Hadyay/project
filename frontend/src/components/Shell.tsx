@@ -8,6 +8,7 @@ import { BackToTop, PrintHeader } from "@/components/Filters";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
+import { usePrefs } from "@/lib/prefs";
 import { useTheme } from "@/lib/theme";
 import { useAlertSummary } from "@/lib/alerts";
 import { Modal } from "@/components/ui";
@@ -55,6 +56,10 @@ const NAV: { label: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+/** الواجهة المبسّطة: the screens an office uses every day. The rest move
+ *  under "المزيد" — still there, still gated by the same permissions. */
+const EVERYDAY = new Set(["/", "/clients", "/statement", "/receipts", "/payments", "/schedule", "/alerts", "/reports", "/settings"]);
 
 const CRUMB: Record<string, string> = {
   "/": "نظرة عامة",
@@ -139,7 +144,9 @@ export function Shell({ children }: { children: ReactNode }) {
   // Desktop: the menu can be hidden to give tables the whole width, and the
   // choice is remembered. Phones keep the slide-in menu (navOpen).
   const [navHidden, setNavHidden] = useState(false);
-  const { lang, setLang } = useLang();
+  const { lang } = useLang();
+  const { prefs, update } = usePrefs();
+  const [moreOpen, setMoreOpen] = useState(false);
   const alerts = useAlertSummary();
   const org = useOrg();
 
@@ -179,13 +186,24 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const current = activeItem(pathname);
   const allowed = (item: NavItem) => item.permission === null || can(item.permission);
-  const menu = NAV.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter(
-    (group) => group.items.length > 0,
-  );
+  const permitted = NAV.flatMap((group) => group.items.filter(allowed));
+  const more = prefs.simple_mode ? permitted.filter((item) => !EVERYDAY.has(item.href)) : [];
+  const menu = prefs.simple_mode
+    ? [{ label: "الشاشات اليومية", items: permitted.filter((item) => EVERYDAY.has(item.href)) }]
+    : NAV.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter((group) => group.items.length > 0);
+  // "المزيد" opens by itself when the screen on show lives in it.
+  const showMore = moreOpen || more.some((item) => item.href === current?.href);
   // A screen the role does not open says so rather than failing on 403s.
   // The first screen is the dashboard only for those who may see it.
   const blocked = current !== undefined && !allowed(current);
-  const home = menu[0]?.items[0]?.href ?? "/settings";
+  const home = permitted[0]?.href ?? "/settings";
+
+  const link = (item: NavItem) => (
+    <Link key={item.href} href={item.href} className={current?.href === item.href ? "on" : ""}>
+      <span className="ic">{item.icon}</span> {item.label}
+      {item.href === "/alerts" && alerts.summary?.count ? <span className="nav-badge">{alerts.summary.count}</span> : null}
+    </Link>
+  );
 
   return (
     <div className={`app${navHidden ? " nav-hidden" : ""}`}>
@@ -206,18 +224,30 @@ export function Shell({ children }: { children: ReactNode }) {
         {menu.map((group) => (
           <div className="nav-group" key={group.label}>
             <div className="nav-label">{group.label}</div>
-            {group.items.map((item) => (
-              <Link key={item.href} href={item.href} className={current?.href === item.href ? "on" : ""}>
-                <span className="ic">{item.icon}</span> {item.label}
-                {item.href === "/alerts" && alerts.summary?.count ? (
-                  <span className="nav-badge">{alerts.summary.count}</span>
-                ) : null}
-              </Link>
-            ))}
+            {group.items.map(link)}
           </div>
         ))}
+        {more.length ? (
+          <div className="nav-group">
+            <button className="nav-more" onClick={() => setMoreOpen(!showMore)} aria-expanded={showMore}>
+              <span className="ic">{showMore ? "▾" : "◂"}</span> المزيد
+              <span className="nav-more-n">{more.length}</span>
+            </button>
+            {showMore ? more.map(link) : null}
+          </div>
+        ) : null}
 
         <div className="nav-foot">
+          <button
+            className={`nav-simple${prefs.simple_mode ? " on" : ""}`}
+            onClick={() => update({ simple_mode: !prefs.simple_mode })}
+            title="تعرض القائمة الشاشات اليومية فقط"
+          >
+            <span className="sw-track">
+              <span className="sw-knob" />
+            </span>
+            الواجهة المبسّطة
+          </button>
           {user.full_name ?? user.username}
           <br />
           <button
@@ -260,7 +290,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <button
             className="lang-toggle"
             translate="no"
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+            onClick={() => update({ lang: lang === "ar" ? "en" : "ar" })}
             title={lang === "ar" ? "English" : "العربية"}
           >
             {lang === "ar" ? "EN" : "ع"}
@@ -290,12 +320,13 @@ export function Shell({ children }: { children: ReactNode }) {
 
 /** Light ⇄ dark in one click; "follow Windows" is in الإعدادات ← المظهر. */
 function ThemeToggle() {
-  const { resolved, setTheme } = useTheme();
+  const { resolved } = useTheme();
+  const { update } = usePrefs();
   const dark = resolved === "dark";
   return (
     <button
       className="theme-toggle"
-      onClick={() => setTheme(dark ? "light" : "dark")}
+      onClick={() => update({ theme: dark ? "light" : "dark" })}
       title={dark ? "الوضع الفاتح" : "الوضع الداكن"}
       aria-label={dark ? "الوضع الفاتح" : "الوضع الداكن"}
     >
