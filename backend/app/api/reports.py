@@ -1,10 +1,11 @@
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.core.deps import DbSession, get_current_user, require_perm
+from app.services import collection as collection_service
 from app.models import (
     Account,
     Apartment,
@@ -28,6 +29,8 @@ from app.schemas.reports import (
     CashBalance,
     ClientBalanceRow,
     ClientBalancesReport,
+    CollectionMonth,
+    CollectionReport,
     Dashboard,
     DebtorRow,
     KpiCard,
@@ -501,6 +504,22 @@ def monthly_report(
         paid_base=sum((r.paid_base for r in rows), Decimal(0)),
         net_base=sum((r.net_base for r in rows), Decimal(0)),
     )
+
+
+@router.get(
+    "/collection",
+    response_model=CollectionReport,
+    dependencies=[Depends(require_perm("dashboard.view", "reports.view"))],
+)
+def collection_report(
+    db: DbSession, months: int = Query(default=6, ge=1, le=36), as_of: date | None = None
+) -> CollectionReport:
+    """Of the clients who owed at the start of each month, how many paid —
+    the dashboard ring (current) and its trend (months). Same rule as the
+    reminders: app/services/collection.py."""
+    as_of = as_of or date.today()
+    rows = [CollectionMonth(**m.__dict__) for m in collection_service.collection(db, as_of, months)]
+    return CollectionReport(as_of=as_of, current=rows[-1], months=rows)
 
 
 @router.get("/client-balances", response_model=ClientBalancesReport, dependencies=[Depends(require_perm("reports.view", "clients.view"))])

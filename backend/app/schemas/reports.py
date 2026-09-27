@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -163,3 +164,65 @@ class ClientBalancesReport(BaseModel):
     total_debit: Decimal
     total_credit: Decimal
     total_balance: Decimal
+
+
+# ---------------------------------------------------------------- collection & grid
+
+
+class CollectionMonth(BaseModel):
+    """Of the clients who owed at the start of the month, how many paid.
+    Same rule as the reminders (app/services/collection.py)."""
+
+    period: str
+    owing_at_start: int
+    paid: int
+    late: int
+    rate: Decimal  # 0–100; 0 when nobody owed at the start
+    amount_collected: Decimal  # every receipt dated in the month
+    expected: Decimal | None  # sum of owing clients' monthly installments, when any is set
+
+
+class CollectionReport(BaseModel):
+    as_of: date
+    current: CollectionMonth
+    months: list[CollectionMonth]  # oldest → newest, the last is `current`
+
+
+class GridCell(BaseModel):
+    period: str
+    paid: Decimal
+    receipts: int
+    status: Literal["paid", "short", "unpaid", "before", "future", "settled"]
+
+
+class GridRow(BaseModel):
+    client_id: int
+    code: str | None
+    name: str
+    phone: str | None
+    project: str | None
+    block: str | None
+    balance: Decimal
+    monthly_installment: Decimal | None
+    first_charge_date: date | None
+    late: bool
+    late_months: int
+    cells: list[GridCell]
+    total_paid: Decimal
+
+
+class GridTotal(BaseModel):
+    period: str
+    paid_amount: Decimal
+    paid_clients: int
+    owing_clients: int
+    rate: Decimal
+
+
+class PaymentGrid(BaseModel):
+    year: int
+    as_of: date
+    months: list[str]
+    projects: list[str]
+    rows: list[GridRow]
+    totals: list[GridTotal]

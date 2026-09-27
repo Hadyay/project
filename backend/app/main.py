@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import accounts, alerts, auth, cash, clients, contracts, journal, property, reference, reports
+from app.api import accounts, alerts, auth, cash, clients, contracts, journal, property, reference, reports, schedule
 from app.config import settings
 
 app = FastAPI(
@@ -32,6 +32,7 @@ app.include_router(cash.payments_router)
 app.include_router(journal.router)
 app.include_router(reports.router)
 app.include_router(alerts.router)
+app.include_router(schedule.router)
 
 
 @app.get("/health", tags=["meta"])

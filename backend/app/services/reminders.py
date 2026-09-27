@@ -3,18 +3,21 @@
 The office sets one day of the month (alert_settings.alert_day, 1–28). Each
 month is a *cycle* that opens on that day and runs until the next month's
 alert day; the cycle in force on `as_of` is the one whose alert day has come.
-A client is **late** in a cycle when:
 
-  - their receivable balance is above the configured minimum (they still owe),
-  - and since the start of the cycle's month they have paid nothing — or less
-    than their monthly installment, when one is set on the client —
+A client is **late** in a cycle when (see app/services/collection.py, which
+the dashboard ring and جدول الدفعات share, so the three never disagree):
+
+  - they already owed at the start of the cycle's month — more than the
+    configured minimum — and still owe today;
+  - and since the start of that month they have paid nothing, or less than
+    their monthly installment when one is set on the client;
   - or an installment on an active contract is past due and unpaid.
 
-So on the alert day every client who owes and has not paid this month turns
-red, and stays red until a receipt covers the month — no job to run, nothing
-to reset: recording the receipt is what clears the alert. Before the alert day
-the previous month's cycle is still in force, so a client who missed last
-month does not disappear from the list on the 1st.
+A client who first owes during a month is not late that month. On the alert
+day every client who owed and has not paid turns red and stays red until a
+receipt covers the month — recording the receipt is what clears the alert.
+Before the alert day the previous month's cycle is still in force, and a
+payment made in those first days still counts toward it.
 
 `months_unpaid` counts whole months since the last receipt (0 = paid this
 month, but short of the installment); None means the client never paid.
@@ -26,33 +29,19 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import (
-    AlertSettings,
-    Client,
-    ClientReminder,
-    Contract,
-    ContractStatus,
-    JournalEntry,
-    JournalLine,
-    PaymentSchedule,
-    Receipt,
-    ScheduleStatus,
-    User,
+from app.models import ClientReminder, User
+from app.services.collection import (
+    CENT,
+    Snapshot,
+    Window,
+    overdue_installments,
+    settings_row,
 )
 
-CENT = Decimal("0.01")
-
-
-def settings_row(db: Session) -> AlertSettings:
-    row = db.get(AlertSettings, 1)
-    if row is None:  # a database built by create_all (tests) has no seeded row
-        row = AlertSettings(id=1, enabled=True, alert_day=1, min_balance=Decimal(0))
-        db.add(row)
-        db.flush()
-    return row
+__all__ = ["settings_row", "cycle_for", "compute", "months_between", "Cycle", "LateClient", "ReminderReport"]
 
 
 def _month_start(day: date) -> date:
@@ -61,7 +50,7 @@ def _month_start(day: date) -> date:
 
 def _previous_month_start(day: date) -> date:
     first = _month_start(day)
-    return (first.replace(year=first.year - 1, month=12) if first.month == 1 else first.replace(month=first.month - 1))
+    return first.replace(year=first.year - 1, month=12) if first.month == 1 else first.replace(month=first.month - 1)
 
 
 def months_between(earlier: date, later: date) -> int:
@@ -81,7 +70,7 @@ def cycle_for(as_of: date, alert_day: int) -> Cycle:
     this_alert = as_of.replace(day=alert_day)
     if as_of >= this_alert:
         start = _month_start(as_of)
-        nxt = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
+        nxt = start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1)
         return Cycle(start.strftime("%Y-%m"), start, this_alert, nxt.replace(day=alert_day), as_of == this_alert)
     start = _previous_month_start(as_of)
     return Cycle(start.strftime("%Y-%m"), start, start.replace(day=alert_day), this_alert, False)
@@ -135,65 +124,12 @@ def compute(db: Session, as_of: date | None = None, client_id: int | None = None
     if not settings.enabled:
         return report
 
-    # Receivable balance per account over live entries (trial-balance shape).
-    balance = (
-        select(
-            JournalLine.account_id.label("account_id"),
-            func.sum(JournalLine.debit_base - JournalLine.credit_base).label("balance"),
-        )
-        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
-        .where(~JournalEntry.is_deleted, JournalEntry.entry_date <= as_of)
-        .group_by(JournalLine.account_id)
-        .subquery()
-    )
-    clients_stmt = (
-        select(Client, balance.c.balance)
-        .join(balance, balance.c.account_id == Client.account_id)
-        .where(~Client.is_deleted, balance.c.balance > settings.min_balance, balance.c.balance > 0)
-    )
-    if client_id is not None:
-        clients_stmt = clients_stmt.where(Client.id == client_id)
-    owing = db.execute(clients_stmt).all()
-    if not owing:
-        return report
-    ids = [client.id for client, _ in owing]
-
-    live_receipts = select(Receipt).where(~Receipt.is_deleted, Receipt.client_id.in_(ids), Receipt.receipt_date <= as_of)
-    paid = dict(
-        db.execute(
-            select(Receipt.client_id, func.sum(Receipt.amount * Receipt.exchange_rate))
-            .where(~Receipt.is_deleted, Receipt.client_id.in_(ids))
-            .where(Receipt.receipt_date >= cycle.start, Receipt.receipt_date <= as_of)
-            .group_by(Receipt.client_id)
-        ).all()
-    )
-    last = dict(
-        db.execute(
-            select(Receipt.client_id, func.max(Receipt.receipt_date))
-            .where(live_receipts.whereclause)
-            .group_by(Receipt.client_id)
-        ).all()
-    )
-    overdue = {
-        cid: (n, amount)
-        for cid, n, amount in db.execute(
-            select(
-                Contract.client_id,
-                func.count(),
-                func.sum(PaymentSchedule.amount - PaymentSchedule.paid_amount),
-            )
-            .join(Contract, Contract.id == PaymentSchedule.contract_id)
-            .where(
-                ~Contract.is_deleted,
-                Contract.status == ContractStatus.active,
-                Contract.client_id.in_(ids),
-                PaymentSchedule.due_date < as_of,
-                PaymentSchedule.status.in_([ScheduleStatus.pending, ScheduleStatus.partial, ScheduleStatus.overdue]),
-                PaymentSchedule.amount > PaymentSchedule.paid_amount,
-            )
-            .group_by(Contract.client_id)
-        ).all()
-    }
+    snap = Snapshot(db, as_of, [client_id] if client_id is not None else None)
+    # The cycle's month, with payments counted up to as_of (a payment made on
+    # the 1st or 2nd before the alert day still counts toward last month).
+    window = Window(cycle.period, cycle.start, as_of)
+    ids = [c.id for c in snap.clients]
+    overdue = overdue_installments(db, as_of, ids)
     reminders = {
         rem.client_id: (rem, username)
         for rem, username in db.execute(
@@ -203,21 +139,19 @@ def compute(db: Session, as_of: date | None = None, client_id: int | None = None
         ).all()
     }
 
-    for client, owed in owing:
-        paid_now = Decimal(paid.get(client.id) or 0).quantize(CENT)
-        installment = Decimal(client.monthly_installment) if client.monthly_installment else None
-        n_overdue, overdue_amount = overdue.get(client.id, (0, Decimal(0)))
-        if installment is not None:
-            short = paid_now < installment
-            reason = "short" if paid_now > 0 else "no_payment"
-        else:
-            short = paid_now == 0
-            reason = "no_payment"
-        if not short and not n_overdue:
+    for client in snap.clients:
+        cm = snap.month(client, window)
+        now = snap.balance_through(client.id, as_of)
+        if not cm.owing or now <= 0:
             continue
-        if not short:
+        n_overdue, overdue_amount = overdue.get(client.id, (0, Decimal(0)))
+        if cm.late:
+            reason = "short" if cm.status == "short" else "no_payment"
+        elif n_overdue:
             reason = "overdue_installment"
-        last_date = last.get(client.id)
+        else:
+            continue
+        last_date = snap.last_receipt(client.id, as_of)
         rem = reminders.get(client.id)
         report.rows.append(
             LateClient(
@@ -228,13 +162,13 @@ def compute(db: Session, as_of: date | None = None, client_id: int | None = None
                 project=client.project,
                 block=client.block,
                 floor_side=client.floor_side,
-                balance=Decimal(owed).quantize(CENT),
-                monthly_installment=installment,
-                paid_this_cycle=paid_now,
+                balance=now.quantize(CENT),
+                monthly_installment=Decimal(client.monthly_installment) if client.monthly_installment else None,
+                paid_this_cycle=cm.paid.quantize(CENT),
                 last_payment_date=last_date,
                 months_unpaid=months_between(last_date, as_of) if last_date else None,
                 overdue_installments=n_overdue,
-                overdue_amount=Decimal(overdue_amount or 0).quantize(CENT),
+                overdue_amount=overdue_amount,
                 reason=reason,
                 reminded_at=rem[0].reminded_at if rem else None,
                 reminded_by=rem[1] if rem else None,
