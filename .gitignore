@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Env
+.env
+.env.local
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data
+legacy_data/
+# Database dumps carry the client's real ledger and password hashes
+db_backup/
+*.log
+
+# Alembic scratch
+backend/*.sqlite3
+
+# Local venv
+backend/.venv/
+
+# Packages made by package.bat (contain the ledger) and runtime logs
+dist/
+logs/
+
+# Never commit: raw legacy data, scratch API dumps, env backups, local tool settings
+*.zip
+acc.json
+*.env.bak
+.env.bak
+.claude/settings.local.json

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نظام إدارة العقارات — تصميم الواجهات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14202E;          /* حبر الدفتر */
+  --ink-2:#1E2E40;
+  --ink-soft:#5A6B7D;
+  --stone:#EDEDE8;        /* حجر بيروت */
+  --paper:#FFFFFF;
+  --line:#D9D8D1;
+  --line-soft:#E8E7E1;
+  --brass:#B08428;        /* نحاس */
+  --brass-soft:#F0E4C6;
+  --debit:#A63D2F;        /* مدين */
+  --credit:#1F6F63;       /* دائن */
+  --warn:#8A5A12;
+  --r:4px;
+  --nav-w:248px;
+  --f-display:"Noto Kufi Arabic",sans-serif;
+  --f-body:"IBM Plex Sans Arabic",sans-serif;
+  --f-mono:"IBM Plex Mono","IBM Plex Sans Arabic",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--f-body);
+  background:var(--stone);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums;direction:ltr;display:inline-block}
+
+/* ================= التخطيط ================= */
+.app{display:flex;min-height:100vh}
+.nav{
+  width:var(--nav-w);flex-shrink:0;background:var(--ink);color:#C8D2DC;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.09)}
+.brand-mark{
+  font-family:var(--f-display);font-weight:700;font-size:17px;color:#fff;
+  display:flex;align-items:center;gap:9px;letter-spacing:-.2px
+}
+.brand-mark span.sq{
+  width:22px;height:22px;background:var(--brass);border-radius:2px;flex-shrink:0;
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;padding:3px
+}
+.brand-mark span.sq i{background:rgba(20,32,46,.55);border-radius:1px}
+.brand-sub{font-size:11px;color:#7C8B9A;margin-top:5px;letter-spacing:.3px}
+
+.nav-group{padding:14px 0 4px}
+.nav-label{
+  font-size:10px;letter-spacing:1.4px;color:#66788A;padding:0 20px 7px;font-weight:600
+}
+.nav a{
+  display:flex;align-items:center;gap:10px;padding:8px 20px;color:#C8D2DC;
+  text-decoration:none;font-size:13.5px;border-right:2.5px solid transparent;cursor:pointer;
+  transition:background .13s,color .13s
+}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:rgba(176,132,40,.14);color:#fff;border-right-color:var(--brass);font-weight:600}
+.nav a .ic{width:16px;text-align:center;opacity:.8;font-size:13px}
+.nav-foot{margin-top:auto;padding:14px 20px;border-top:1px solid rgba(255,255,255,.09);font-size:11.5px;color:#66788A}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ================= الشريط العلوي ================= */
+.topbar{
+  background:var(--paper);border-bottom:1px solid var(--line);
+  padding:0 24px;height:60px;display:flex;align-items:center;gap:18px;
+  position:sticky;top:0;z-index:20
+}
+.crumb{font-family:var(--f-display);font-size:15px;font-weight:700}
+.crumb small{font-family:var(--f-body);font-weight:400;color:var(--ink-soft);font-size:12px;margin-right:8px}
+.spacer{flex:1}
+.search{
+  display:flex;align-items:center;gap:7px;background:var(--stone);border:1px solid var(--line);
+  border-radius:var(--r);padding:6px 11px;min-width:210px;color:var(--ink-soft);font-size:13px
+}
+.search input{border:0;background:none;outline:none;font-family:var(--f-body);font-size:13px;width:100%;color:var(--ink)}
+
+/* شريط سعر الصرف — عنصر مميّز */
+.rate{
+  display:flex;align-items:stretch;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  background:var(--paper)
+}
+.rate-lbl{
+  background:var(--ink);color:#fff;padding:5px 10px;font-size:10.5px;display:flex;align-items:center;
+  letter-spacing:.4px;font-weight:600
+}
+.rate-val{padding:4px 12px;display:flex;flex-direction:column;justify-content:center;line-height:1.25}
+.rate-val b{font-family:var(--f-mono);font-size:14px;font-weight:600;letter-spacing:-.3px}
+.rate-val small{font-size:9.5px;color:var(--ink-soft)}
+.avatar{
+  width:32px;height:32px;border-radius:50%;background:var(--brass-soft);color:var(--warn);
+  display:grid;place-items:center;font-weight:700;font-size:12.5px;border:1px solid #E3D3A9
+}
+
+/* ================= الشاشات ================= */
+.wrap{padding:22px 24px 40px;max-width:1320px;width:100%}
+.screen{display:none}
+.screen.on{display:block;animation:in .22s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.head{display:flex;align-items:flex-end;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.head h1{font-family:var(--f-display);font-size:20px;font-weight:700;letter-spacing:-.3px}
+.head p{color:var(--ink-soft);font-size:13px}
+
+.btn{
+  font-family:var(--f-body);font-size:13px;font-weight:600;padding:7px 14px;border-radius:var(--r);
+  border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:.13s
+}
+.btn:hover{border-color:var(--ink-soft)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:var(--ink-2)}
+.btn.brass{background:var(--brass);border-color:var(--brass);color:#fff}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r)}
+.card-h{
+  padding:12px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px
+}
+.card-h h3{font-family:var(--f-display);font-size:13.5px;font-weight:700}
+.card-h .spacer{flex:1}
+.card-b{padding:16px}
+
+/* ====== واجهة الأرقام ثنائية العملة — التوقيع ====== */
+.amt{display:inline-flex;flex-direction:column;align-items:flex-end;line-height:1.3}
+.amt b{font-family:var(--f-mono);font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;direction:ltr}
+.amt small{
+  font-family:var(--f-mono);font-size:10.5px;color:var(--ink-soft);direction:ltr;
+  border-top:1px solid var(--line-soft);padding-top:1px;margin-top:1px;font-variant-numeric:tabular-nums
+}
+.amt.dr b{color:var(--debit)}
+.amt.cr b{color:var(--credit)}
+
+/* ====== بطاقات المؤشرات ====== */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;top:0;right:0;width:2.5px;height:100%;background:var(--line)}
+.tile.a::before{background:var(--brass)}
+.tile.b::before{background:var(--credit)}
+.tile.c::before{background:var(--debit)}
+.tile.d::before{background:var(--ink)}
+.tile .t-lbl{font-size:11.5px;color:var(--ink-soft);margin-bottom:6px}
+.tile .t-val{font-family:var(--f-mono);font-size:21px;font-weight:600;letter-spacing:-.6px;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.tile .t-sub{font-size:11px;color:var(--ink-soft);margin-top:3px;font-family:var(--f-mono);direction:ltr;text-align:right}
+.tile .t-sub.up{color:var(--credit)}
+.tile .t-sub.down{color:var(--debit)}
+
+/* ====== لوحة واجهة البناء — العنصر المميّز ====== */
+.elev{display:flex;gap:26px;flex-wrap:wrap}
+.elev-board{display:flex;flex-direction:column-reverse;gap:5px}
+.floor{display:flex;align-items:center;gap:7px}
+.floor-no{
+  font-family:var(--f-mono);font-size:10px;color:var(--ink-soft);width:26px;text-align:left;
+  border-left:1px solid var(--line);padding-left:6px;flex-shrink:0
+}
+.unit{
+  width:52px;height:34px;border-radius:2px;border:1px solid var(--line);background:var(--stone);
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:10.5px;font-weight:500;
+  cursor:pointer;transition:transform .12s,box-shadow .12s;position:relative
+}
+.unit:hover{transform:translateY(-2px);box-shadow:0 3px 8px rgba(20,32,46,.16);z-index:2}
+.unit.sold{background:var(--ink);color:#fff;border-color:var(--ink)}
+.unit.rented{background:var(--credit);color:#fff;border-color:var(--credit)}
+.unit.reserved{background:var(--brass-soft);border-color:#E0CF9F;color:var(--warn)}
+.unit.free{background:var(--paper)}
+.elev-ground{
+  height:7px;background:repeating-linear-gradient(45deg,var(--ink-soft),var(--ink-soft) 2px,transparent 2px,transparent 5px);
+  margin-top:4px;border-top:1.5px solid var(--ink)
+}
+.legend{display:flex;flex-direction:column;gap:9px;font-size:12px;padding-top:4px}
+.legend div{display:flex;align-items:center;gap:8px}
+.sw{width:14px;height:14px;border-radius:2px;border:1px solid var(--line);flex-shrink:0}
+.sw.sold{background:var(--ink);border-color:var(--ink)}
+.sw.rented{background:var(--credit);border-color:var(--credit)}
+.sw.reserved{background:var(--brass-soft);border-color:#E0CF9F}
+.sw.free{background:var(--paper)}
+.legend b{font-family:var(--f-mono);margin-right:auto;padding-right:14px}
+
+/* ====== الجداول ====== */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{
+  text-align:right;font-size:11px;font-weight:600;color:var(--ink-soft);letter-spacing:.3px;
+  padding:9px 14px;border-bottom:1px solid var(--line);background:#FBFBF9;white-space:nowrap
+}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#FAFAF7}
+td.num,th.num{text-align:left}
+.doc{font-family:var(--f-mono);font-size:12px;color:var(--ink-soft);direction:ltr;display:inline-block}
+.nm{font-weight:600}
+.sub{font-size:11.5px;color:var(--ink-soft)}
+
+.pill{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  padding:2.5px 9px;border-radius:99px;border:1px solid transparent;white-space:nowrap
+}
+.pill.ok{background:#E4F0ED;color:var(--credit);border-color:#C9E2DC}
+.pill.late{background:#F7E4E1;color:var(--debit);border-color:#EFCEC9}
+.pill.wait{background:var(--brass-soft);color:var(--warn);border-color:#E7D8B2}
+.pill.gray{background:var(--stone);color:var(--ink-soft);border-color:var(--line)}
+.pill.dark{background:var(--ink);color:#fff}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* ====== كشف الحساب — ورقة الدفتر ====== */
+.ledger{position:relative}
+.ledger thead th{background:var(--ink);color:#fff;border-bottom:0}
+.ledger tbody td{border-bottom:1px solid var(--line-soft)}
+.ledger tbody tr:nth-child(even){background:#FCFCFA}
+.bal-col{
+  border-right:2px solid var(--brass) !important;background:#FDFBF5 !important;
+  font-family:var(--f-mono);font-weight:600;text-align:left;font-variant-numeric:tabular-nums;direction:ltr
+}
+.ledger-foot{
+  display:flex;justify-content:space-between;align-items:center;padding:14px 16px;
+  background:var(--ink);color:#fff;border-radius:0 0 var(--r) var(--r);flex-wrap:wrap;gap:12px
+}
+.ledger-foot .lf-lbl{font-size:12px;color:#9FB0C0}
+.ledger-foot .lf-val{font-family:var(--f-mono);font-size:20px;font-weight:600;direction:ltr;font-variant-numeric:tabular-nums}
+.ledger-foot .lf-val small{display:block;font-size:11px;color:#9FB0C0;font-weight:400}
+
+/* ====== ملف العميل ====== */
+.profile{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+.profile-card{flex:1;min-width:260px}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--ink-soft)}
+.kv b{font-weight:600}
+
+/* ====== الشبكات ====== */
+.grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+.bcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bcard-top{
+  height:76px;background:var(--ink);position:relative;display:flex;align-items:flex-end;padding:11px 14px;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 1px,transparent 1px 26px),
+                   repeating-linear-gradient(0deg,rgba(255,255,255,.07) 0 1px,transparent 1px 19px)
+}
+.bcard-top h4{font-family:var(--f-display);color:#fff;font-size:14.5px;font-weight:700}
+.bcard-b{padding:12px 14px}
+.bstat{display:flex;justify-content:space-between;font-size:12px;padding:4px 0}
+.bstat b{font-family:var(--f-mono);font-weight:600}
+.bar{height:5px;background:var(--stone);border-radius:99px;overflow:hidden;display:flex;margin-top:9px}
+.bar i{display:block;height:100%}
+.bar i.s{background:var(--ink)}
+.bar i.r{background:var(--credit)}
+.bar i.v{background:var(--brass)}
+
+/* ====== النموذج ====== */
+.form-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+.field label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:4px;font-weight:500}
+.field input,.field select{
+  width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:var(--r);
+  font-family:var(--f-body);font-size:13px;background:var(--paper);color:var(--ink)
+}
+.field input.mono-in{font-family:var(--f-mono);direction:ltr;text-align:left}
+.field input:focus,.field select:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 2px var(--brass-soft)}
+.hint{font-size:11px;color:var(--ink-soft);margin-top:4px}
+
+/* توزيع القيد */
+.je-line{
+  display:grid;grid-template-columns:1fr 130px 130px 34px;gap:8px;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--line-soft)
+}
+.je-bal{
+  display:flex;justify-content:space-between;align-items:center;padding:11px 14px;margin-top:10px;
+  border-radius:var(--r);background:#E4F0ED;border:1px solid #C9E2DC;color:var(--credit);font-size:12.5px;font-weight:600
+}
+.je-bal.off{background:#F7E4E1;border-color:#EFCEC9;color:var(--debit)}
+
+/* الجدول الزمني للدفعات */
+.sched{display:flex;flex-direction:column}
+.sched-row{
+  display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-soft)
+}
+.sched-row:last-child{border-bottom:0}
+.sched-n{
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;
+  font-family:var(--f-mono);font-size:11px;flex-shrink:0;color:var(--ink-soft)
+}
+.sched-n.paid{background:var(--credit);color:#fff;border-color:var(--credit)}
+.sched-n.late{background:var(--debit);color:#fff;border-color:var(--debit)}
+.sched-bar{flex:1;height:4px;background:var(--stone);border-radius:99px;overflow:hidden}
+.sched-bar i{display:block;height:100%;background:var(--credit)}
+
+/* التقارير */
+.rep{
+  display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--paper);cursor:pointer;transition:.13s
+}
+.rep:hover{border-color:var(--brass);box-shadow:0 2px 10px rgba(20,32,46,.07)}
+.rep .ric{
+  width:34px;height:34px;border-radius:var(--r);background:var(--stone);display:grid;place-items:center;
+  flex-shrink:0;font-size:15px
+}
+.rep h4{font-family:var(--f-display);font-size:13px;font-weight:700;margin-bottom:3px}
+.rep p{font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+
+/* سجل التدقيق */
+.audit{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.audit:last-child{border-bottom:0}
+.audit .ab{
+  width:7px;height:7px;border-radius:50%;margin-top:7px;flex-shrink:0
+}
+.ab.add{background:var(--credit)}
+.ab.edit{background:var(--brass)}
+.ab.del{background:var(--debit)}
+.audit time{font-family:var(--f-mono);font-size:11px;color:var(--ink-soft);margin-right:auto;direction:ltr;white-space:nowrap}
+
+.note{
+  display:flex;gap:9px;padding:11px 13px;background:#FDFBF5;border:1px solid #EADFC4;
+  border-radius:var(--r);font-size:12.5px;color:var(--warn);margin-bottom:16px;align-items:flex-start
+}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{
+  font-family:var(--f-body);font-size:13px;font-weight:600;padding:8px 15px;background:none;border:0;
+  border-bottom:2px solid transparent;color:var(--ink-soft);cursor:pointer;margin-bottom:-1px
+}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--brass)}
+
+.empty{text-align:center;padding:38px 20px;color:var(--ink-soft)}
+.empty h4{font-family:var(--f-display);font-size:14px;color:var(--ink);margin-bottom:5px}
+.empty p{font-size:12.5px;margin-bottom:14px}
+
+/* ================= الاستجابة ================= */
+.nav-toggle{display:none;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;cursor:pointer;font-size:15px}
+@media(max-width:1080px){
+  .tiles{grid-template-columns:repeat(2,1fr)}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr 1fr}
+}
+@media(max-width:760px){
+  .nav{position:fixed;right:0;top:0;z-index:60;transform:translateX(100%);transition:transform .22s}
+  .nav.open{transform:none;box-shadow:-8px 0 26px rgba(0,0,0,.25)}
+  .nav-toggle{display:block}
+  .tiles,.grid-2,.grid-3,.grid-4,.form-row{grid-template-columns:1fr}
+  .wrap{padding:16px 14px 34px}
+  .topbar{padding:0 14px;gap:10px}
+  .search{display:none}
+  .rate-val small{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ============ التنقّل ============ -->
+<aside class="nav" id="nav">
+  <div class="brand">
+    <div class="brand-mark"><span class="sq"><i></i><i></i><i></i><i></i></span> إدارة العقارات</div>
+    <div class="brand-sub">مجمّع الأبنية — بيروت</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">التشغيل</div>
+    <a class="on" data-go="dashboard"><span class="ic">◱</span> لوحة التحكم</a>
+    <a data-go="buildings"><span class="ic">▤</span> الأبنية</a>
+    <a data-go="units"><span class="ic">▦</span> الشقق والوحدات</a>
+    <a data-go="clients"><span class="ic">◉</span> العملاء</a>
+    <a data-go="contracts"><span class="ic">▭</span> العقود</a>
+    <a data-go="schedule"><span class="ic">◷</span> جدول الدفعات</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">المالية</div>
+    <a data-go="statement"><span class="ic">▥</span> كشف حساب عميل</a>
+    <a data-go="receipts"><span class="ic">↓</span> الوصولات — قبض</a>
+    <a data-go="payments"><span class="ic">↑</span> المدفوعات — صرف</a>
+    <a data-go="journal"><span class="ic">≡</span> قيود اليومية</a>
+    <a data-go="trial"><span class="ic">⚖</span> ميزان المراجعة</a>
+    <a data-go="accounts"><span class="ic">☰</span> دليل الحسابات</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">النظام</div>
+    <a data-go="reports"><span class="ic">▧</span> التقارير</a>
+    <a data-go="settings"><span class="ic">⚙</span> الإعدادات والصلاحيات</a>
+  </div>
+
+  <div class="nav-foot">آخر إقفال: ٣١ تموز ٢٠٢٦</div>
+</aside>
+
+<div class="main">
+
+  <!-- ============ الشريط العلوي ============ -->
+  <header class="topbar">
+    <button class="nav-toggle" id="navBtn" aria-label="فتح القائمة">☰</button>
+    <div class="crumb" id="crumb">لوحة التحكم <small>نظرة عامة</small></div>
+    <div class="spacer"></div>
+    <div class="search"><span>⌕</span><input placeholder="ابحث عن عميل، شقة، أو رقم وصل…" aria-label="بحث"></div>
+    <div class="rate" title="سعر الصرف المعتمد اليوم">
+      <div class="rate-lbl">سعر الصرف</div>
+      <div class="rate-val"><b>89,500</b><small>ل.ل / دولار</small></div>
+    </div>
+    <div class="avatar" title="علي — محاسب">ع</div>
+  </header>
+
+  <div class="wrap">
+
+  <!-- ================= لوحة التحكم ================= -->
+  <section class="screen on" id="dashboard">
+    <div class="head">
+      <div><h1>لوحة التحكم</h1><p>صورة اليوم عن الوحدات والتحصيل</p></div>
+      <div class="spacer"></div>
+      <button class="btn">تصدير</button>
+      <button class="btn primary">+ وصل قبض</button>
+    </div>
+
+    <div class="tiles">
+      <div class="tile a">
+        <div class="t-lbl">إجمالي ذمم العملاء</div>
+        <div class="t-val">1,284,500</div>
+        <div class="t-sub">$ — يعادل 114.9 مليار ل.ل</div>
+      </div>
+      <div class="tile b">
+        <div class="t-lbl">محصّل هذا الشهر</div>
+        <div class="t-val">96,300</div>
+        <div class="t-sub up">▲ 12% عن الشهر الماضي</div>
+      </div>
+      <div class="tile c">
+        <div class="t-lbl">دفعات متأخرة</div>
+        <div class="t-val">47,800</div>
+        <div class="t-sub down">14 دفعة على 9 عملاء</div>
+      </div>
+      <div class="tile d">
+        <div class="t-lbl">وحدات متاحة</div>
+        <div class="t-val">23</div>
+        <div class="t-sub">من أصل 84 وحدة</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h">
+          <h3>واجهة البناء — برج المهدي</h3>
+          <div class="spacer"></div>
+          <span class="sub">اضغط على أي وحدة لفتح ملفها</span>
+        </div>
+        <div class="card-b">
+          <div class="elev">
+            <div>
+              <div class="elev-board" id="elev"></div>
+              <div class="elev-ground"></div>
+            </div>
+            <div class="legend">
+              <div><span class="sw sold"></span> مباعة <b>38</b></div>
+              <div><span class="sw rented"></span> مؤجّرة <b>19</b></div>
+              <div><span class="sw reserved"></span> محجوزة <b>4</b></div>
+              <div><span class="sw free"></span> متاحة <b>23</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>دفعات تجاوزت الاستحقاق</h3></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>العميل</th><th>الاستحقاق</th><th class="num">المبلغ</th></tr></thead>
+            <tbody>
+              <tr><td><div class="nm">علي طلال دهيني</div><div class="sub">عقد بيع — A3</div></td>
+                  <td><span class="doc">2026-06-15</span><div><span class="pill late"><i class="dot"></i> متأخر 69 يوم</span></div></td>
+                  <td class="num"><span class="amt dr"><b>8,000</b><small>716,000,000 ل.ل</small></span></td></tr>
+              <tr><td><div class="nm">آمنة دهيني</div><div class="sub">إيجار — B7</div></td>
+                  <td><span class="doc">2026-07-01</span><div><span class="pill late"><i class="dot"></i> متأخر 53 يوم</span></div></td>
+                  <td class="num"><span class="amt dr"><b>1,200</b><small>107,400,000 ل.ل</small></span></td></tr>
+              <tr><td><div class="nm">حسين صالح قصير</div><div class="sub">عقد بيع — C2</div></td>
+                  <td><span class="doc">2026-07-20</span><div><span class="pill wait"><i class="dot"></i> متأخر 34 يوم</span></div></td>
+                  <td class="num"><span class="amt dr"><b>10,000</b><small>895,000,000 ل.ل</small></span></td></tr>
+              <tr><td><div class="nm">زينب علي حمود</div><div class="sub">عقد بيع — A6</div></td>
+                  <td><span class="doc">2026-08-01</span><div><span class="pill wait"><i class="dot"></i> متأخر 22 يوم</span></div></td>
+                  <td class="num"><span class="amt dr"><b>6,500</b><small>581,750,000 ل.ل</small></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-h" style="border-top:1px solid var(--line-soft);border-bottom:0">
+          <div class="spacer"></div><button class="btn">عرض كل المتأخرات (14)</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+
+    <div class="card">
+      <div class="card-h"><h3>الحركة الأخيرة</h3><div class="spacer"></div><span class="sub">اليوم — ٢٣ آب ٢٠٢٦</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>المستند</th><th>النوع</th><th>الطرف</th><th>البيان</th><th class="num">المبلغ</th><th>المستخدم</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">REC-2041</span></td><td><span class="pill ok">قبض</span></td><td class="nm">علي طلال دهيني</td><td class="sub">قسط رقم ٧ — عقد A3</td><td class="num"><span class="amt cr"><b>8,000</b><small>716,000,000 ل.ل</small></span></td><td class="sub">علي</td></tr>
+            <tr><td><span class="doc">INV-0148</span></td><td><span class="pill dark">مبيع</span></td><td class="nm">مريم كامل ياسين</td><td class="sub">بيع شقة D4 — الطابق ٤</td><td class="num"><span class="amt"><b>92,000</b><small>8,234,000,000 ل.ل</small></span></td><td class="sub">علي</td></tr>
+            <tr><td><span class="doc">PAY-0014</span></td><td><span class="pill gray">صرف</span></td><td class="nm">مؤسسة الكهرباء</td><td class="sub">فاتورة مولّد — آب</td><td class="num"><span class="amt dr"><b>1,450</b><small>129,775,000 ل.ل</small></span></td><td class="sub">حسن</td></tr>
+            <tr><td><span class="doc">REC-2040</span></td><td><span class="pill ok">قبض</span></td><td class="nm">آمنة دهيني</td><td class="sub">إيجار تموز — B7</td><td class="num"><span class="amt cr"><b>1,200</b><small>107,400,000 ل.ل</small></span></td><td class="sub">حسن</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= الأبنية ================= -->
+  <section class="screen" id="buildings">
+    <div class="head">
+      <div><h1>الأبنية</h1><p>٤ أبنية — ٨٤ وحدة</p></div>
+      <div class="spacer"></div><button class="btn primary">+ بناء جديد</button>
+    </div>
+    <div class="grid-3">
+      <div class="bcard">
+        <div class="bcard-top"><h4>برج المهدي</h4></div>
+        <div class="bcard-b">
+          <div class="bstat"><span>الموقع</span><b>بيروت — الطريق الجديدة</b></div>
+          <div class="bstat"><span>الطوابق</span><b>8</b></div>
+          <div class="bstat"><span>الوحدات</span><b>32</b></div>
+          <div class="bar"><i class="s" style="width:47%"></i><i class="r" style="width:25%"></i><i class="v" style="width:9%"></i></div>
+          <div class="bstat" style="padding-top:8px"><span class="sub">15 مباعة · 8 مؤجّرة · 3 محجوزة · 6 متاحة</span></div>
+        </div>
+      </div>
+      <div class="bcard">
+        <div class="bcard-top"><h4>مبنى السلام</h4></div>
+        <div class="bcard-b">
+          <div class="bstat"><span>الموقع</span><b>بيروت — الأوزاعي</b></div>
+          <div class="bstat"><span>الطوابق</span><b>6</b></div>
+          <div class="bstat"><span>الوحدات</span><b>24</b></div>
+          <div class="bar"><i class="s" style="width:58%"></i><i class="r" style="width:17%"></i><i class="v" style="width:4%"></i></div>
+          <div class="bstat" style="padding-top:8px"><span class="sub">14 مباعة · 4 مؤجّرة · 1 محجوزة · 5 متاحة</span></div>
+        </div>
+      </div>
+      <div class="bcard">
+        <div class="bcard-top"><h4>إقامة الزهراء</h4></div>
+        <div class="bcard-b">
+          <div class="bstat"><span>الموقع</span><b>الضاحية الجنوبية</b></div>
+          <div class="bstat"><span>الطوابق</span><b>5</b></div>
+          <div class="bstat"><span>الوحدات</span><b>18</b></div>
+          <div class="bar"><i class="s" style="width:39%"></i><i class="r" style="width:28%"></i><i class="v" style="width:0%"></i></div>
+          <div class="bstat" style="padding-top:8px"><span class="sub">7 مباعة · 5 مؤجّرة · 0 محجوزة · 6 متاحة</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= الشقق ================= -->
+  <section class="screen" id="units">
+    <div class="head">
+      <div><h1>الشقق والوحدات</h1><p>٨٤ وحدة في ٤ أبنية</p></div>
+      <div class="spacer"></div><button class="btn">تصفية</button><button class="btn primary">+ وحدة</button>
+    </div>
+    <div class="tabs">
+      <button class="on">الكل ٨٤</button><button>متاحة ٢٣</button><button>مباعة ٣٨</button>
+      <button>مؤجّرة ١٩</button><button>محجوزة ٤</button>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الوحدة</th><th>البناء</th><th>الطابق</th><th class="num">المساحة</th><th>النوع</th><th>الحالة</th><th>المالك / المستأجر</th><th class="num">السعر</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">A3</span></td><td>برج المهدي</td><td class="num"><span class="mono">3</span></td><td class="num"><span class="mono">120</span> م²</td><td>شقة</td><td><span class="pill dark">مباعة</span></td><td class="nm">علي طلال دهيني</td><td class="num"><span class="amt"><b>80,000</b><small>7,160,000,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">A6</span></td><td>برج المهدي</td><td class="num"><span class="mono">6</span></td><td class="num"><span class="mono">145</span> م²</td><td>شقة</td><td><span class="pill dark">مباعة</span></td><td class="nm">زينب علي حمود</td><td class="num"><span class="amt"><b>95,000</b><small>8,502,500,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">B7</span></td><td>برج المهدي</td><td class="num"><span class="mono">7</span></td><td class="num"><span class="mono">110</span> م²</td><td>شقة</td><td><span class="pill ok">مؤجّرة</span></td><td class="nm">آمنة دهيني</td><td class="num"><span class="amt"><b>1,200</b><small>شهرياً</small></span></td></tr>
+            <tr><td><span class="doc">C2</span></td><td>مبنى السلام</td><td class="num"><span class="mono">2</span></td><td class="num"><span class="mono">98</span> م²</td><td>شقة</td><td><span class="pill dark">مباعة</span></td><td class="nm">حسين صالح قصير</td><td class="num"><span class="amt"><b>72,000</b><small>6,444,000,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">D4</span></td><td>مبنى السلام</td><td class="num"><span class="mono">4</span></td><td class="num"><span class="mono">132</span> م²</td><td>شقة</td><td><span class="pill wait">محجوزة</span></td><td class="nm">مريم كامل ياسين</td><td class="num"><span class="amt"><b>92,000</b><small>8,234,000,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">G1</span></td><td>برج المهدي</td><td class="num"><span class="mono">0</span></td><td class="num"><span class="mono">64</span> م²</td><td>محل</td><td><span class="pill gray">متاحة</span></td><td class="sub">—</td><td class="num"><span class="amt"><b>55,000</b><small>4,922,500,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">E5</span></td><td>إقامة الزهراء</td><td class="num"><span class="mono">5</span></td><td class="num"><span class="mono">128</span> م²</td><td>شقة</td><td><span class="pill gray">متاحة</span></td><td class="sub">—</td><td class="num"><span class="amt"><b>78,000</b><small>6,981,000,000 ل.ل</small></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= العملاء ================= -->
+  <section class="screen" id="clients">
+    <div class="head">
+      <div><h1>العملاء</h1><p>٥٦٥ حساب — لكل عميل حساب في دليل الحسابات</p></div>
+      <div class="spacer"></div><button class="btn">تصدير Excel</button><button class="btn primary">+ عميل</button>
+    </div>
+    <div class="note"><span>◆</span><div>كل عميل مرتبط بحساب فرعي تحت <b>٤١١ — ذمم عملاء</b>. كشف حسابه يُبنى مباشرة من قيود اليومية، فلا حاجة لإدخال الأرصدة يدوياً.</div></div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>العميل</th><th>رقم الحساب</th><th>الهاتف</th><th>العقود</th><th class="num">الرصيد</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><div class="nm">علي طلال دهيني</div><div class="sub">بيروت — الطريق الجديدة</div></td><td><span class="doc">41100006</span></td><td><span class="doc">03 111 222</span></td><td><span class="pill gray">بيع · A3</span></td><td class="num"><span class="amt dr"><b>55,000</b><small>4,922,500,000 ل.ل</small></span></td><td><span class="pill late"><i class="dot"></i> متأخر</span></td><td><button class="btn" data-go="statement">كشف الحساب</button></td></tr>
+            <tr><td><div class="nm">آمنة دهيني</div><div class="sub">بيروت — الأوزاعي</div></td><td><span class="doc">41100014</span></td><td><span class="doc">70 884 019</span></td><td><span class="pill gray">إيجار · B7</span></td><td class="num"><span class="amt dr"><b>2,400</b><small>214,800,000 ل.ل</small></span></td><td><span class="pill late"><i class="dot"></i> متأخر</span></td><td><button class="btn" data-go="statement">كشف الحساب</button></td></tr>
+            <tr><td><div class="nm">حسين صالح قصير</div><div class="sub">الضاحية الجنوبية</div></td><td><span class="doc">41100021</span></td><td><span class="doc">71 402 337</span></td><td><span class="pill gray">بيع · C2</span></td><td class="num"><span class="amt dr"><b>31,000</b><small>2,774,500,000 ل.ل</small></span></td><td><span class="pill wait"><i class="dot"></i> قيد التحصيل</span></td><td><button class="btn" data-go="statement">كشف الحساب</button></td></tr>
+            <tr><td><div class="nm">مريم كامل ياسين</div><div class="sub">بيروت — الحمرا</div></td><td><span class="doc">41100033</span></td><td><span class="doc">03 776 512</span></td><td><span class="pill gray">حجز · D4</span></td><td class="num"><span class="amt dr"><b>92,000</b><small>8,234,000,000 ل.ل</small></span></td><td><span class="pill ok"><i class="dot"></i> منتظم</span></td><td><button class="btn" data-go="statement">كشف الحساب</button></td></tr>
+            <tr><td><div class="nm">زينب علي حمود</div><div class="sub">بيروت — المزرعة</div></td><td><span class="doc">41100027</span></td><td><span class="doc">76 190 448</span></td><td><span class="pill gray">بيع · A6</span></td><td class="num"><span class="amt cr"><b>0</b><small>مسدّد بالكامل</small></span></td><td><span class="pill ok"><i class="dot"></i> مسدّد</span></td><td><button class="btn" data-go="statement">كشف الحساب</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= كشف الحساب ================= -->
+  <section class="screen" id="statement">
+    <div class="head">
+      <div><h1>كشف حساب</h1><p>علي طلال دهيني — الحساب ٤١١٠٠٠٠٦</p></div>
+      <div class="spacer"></div><button class="btn">طباعة</button><button class="btn">PDF</button><button class="btn brass">إرسال للعميل</button>
+    </div>
+
+    <div class="profile">
+      <div class="card profile-card">
+        <div class="card-h"><h3>بيانات العميل</h3></div>
+        <div class="card-b">
+          <div class="kv"><span>الاسم</span><b>علي طلال دهيني</b></div>
+          <div class="kv"><span>الهاتف</span><b class="mono">03 111 222</b></div>
+          <div class="kv"><span>رقم الهوية</span><b class="mono">1978-04412</b></div>
+          <div class="kv"><span>العنوان</span><b>بيروت — الطريق الجديدة</b></div>
+        </div>
+      </div>
+      <div class="card profile-card">
+        <div class="card-h"><h3>العقد المرتبط</h3></div>
+        <div class="card-b">
+          <div class="kv"><span>رقم العقد</span><b class="mono">SALE-0001</b></div>
+          <div class="kv"><span>الوحدة</span><b>برج المهدي — A3 · طابق ٣</b></div>
+          <div class="kv"><span>قيمة البيع</span><b class="mono">$80,000</b></div>
+          <div class="kv"><span>الأقساط</span><b>٧ من ١٠ مدفوعة</b></div>
+        </div>
+      </div>
+      <div class="card profile-card">
+        <div class="card-h"><h3>الملخّص</h3></div>
+        <div class="card-b">
+          <div class="kv"><span>إجمالي المدين</span><b class="mono" style="color:var(--debit)">80,000.00</b></div>
+          <div class="kv"><span>إجمالي الدائن</span><b class="mono" style="color:var(--credit)">25,000.00</b></div>
+          <div class="kv"><span>عدد الحركات</span><b class="mono">8</b></div>
+          <div class="kv"><span>آخر دفعة</span><b class="mono">2026-07-15</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h3>الحركات</h3><div class="spacer"></div>
+        <span class="sub">من ٠١-٠٧-٢٠١٩ إلى ٢٣-٠٨-٢٠٢٦ · العملة الأساسية: دولار</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="ledger">
+          <thead><tr><th>التاريخ</th><th>المستند</th><th>البيان</th><th class="num">مدين</th><th class="num">دائن</th><th class="num">الرصيد</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">2019-07-05</span></td><td><span class="doc">JE-0001</span></td><td>قيد افتتاحي — بيع شقة A3</td><td class="num"><span class="mono" style="color:var(--debit)">80,000.00</span></td><td class="num sub">—</td><td class="bal-col">80,000.00</td></tr>
+            <tr><td><span class="doc">2019-09-12</span></td><td><span class="doc">REC-0102</span></td><td>دفعة أولى — نقداً</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">10,000.00</span></td><td class="bal-col">70,000.00</td></tr>
+            <tr><td><span class="doc">2020-03-09</span></td><td><span class="doc">REC-0417</span></td><td>قسط رقم ٢ — شيك بنك بيروت</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">5,000.00</span></td><td class="bal-col">65,000.00</td></tr>
+            <tr><td><span class="doc">2021-09-11</span></td><td><span class="doc">REC-0873</span></td><td>قسط رقم ٣</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">4,000.00</span></td><td class="bal-col">61,000.00</td></tr>
+            <tr><td><span class="doc">2023-05-15</span></td><td><span class="doc">REC-1288</span></td><td>قسط رقم ٤ — نقداً</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">3,000.00</span></td><td class="bal-col">58,000.00</td></tr>
+            <tr><td><span class="doc">2024-02-06</span></td><td><span class="doc">REC-1604</span></td><td>قسط رقم ٥</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">1,000.00</span></td><td class="bal-col">57,000.00</td></tr>
+            <tr><td><span class="doc">2026-07-15</span></td><td><span class="doc">REC-2041</span></td><td>قسط رقم ٦ — تحويل مصرفي</td><td class="num sub">—</td><td class="num"><span class="mono" style="color:var(--credit)">2,000.00</span></td><td class="bal-col">55,000.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ledger-foot">
+        <div><div class="lf-lbl">الرصيد المستحق على العميل</div><div class="lf-val">55,000.00 <small>دولار</small></div></div>
+        <div style="text-align:left"><div class="lf-lbl">يعادل بالليرة — بسعر ٨٩,٥٠٠</div><div class="lf-val">4,922,500,000 <small>ليرة لبنانية</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= العقود ================= -->
+  <section class="screen" id="contracts">
+    <div class="head">
+      <div><h1>العقود</h1><p>عقود البيع بالتقسيط وعقود الإيجار</p></div>
+      <div class="spacer"></div><button class="btn primary">+ عقد جديد</button>
+    </div>
+    <div class="tabs"><button class="on">الكل</button><button>بيع</button><button>إيجار</button><button>منتهية</button></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>رقم العقد</th><th>النوع</th><th>العميل</th><th>الوحدة</th><th class="num">القيمة</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td><span class="doc">SALE-0001</span></td><td><span class="pill dark">بيع</span></td><td class="nm">علي طلال دهيني</td><td><span class="doc">A3</span></td><td class="num"><span class="amt"><b>80,000</b><small>١٠ أقساط</small></span></td><td><span class="pill ok">ساري</span></td></tr>
+              <tr><td><span class="doc">RENT-0044</span></td><td><span class="pill ok">إيجار</span></td><td class="nm">آمنة دهيني</td><td><span class="doc">B7</span></td><td class="num"><span class="amt"><b>1,200</b><small>شهرياً</small></span></td><td><span class="pill ok">ساري</span></td></tr>
+              <tr><td><span class="doc">SALE-0012</span></td><td><span class="pill dark">بيع</span></td><td class="nm">حسين صالح قصير</td><td><span class="doc">C2</span></td><td class="num"><span class="amt"><b>72,000</b><small>٨ أقساط</small></span></td><td><span class="pill ok">ساري</span></td></tr>
+              <tr><td><span class="doc">SALE-0019</span></td><td><span class="pill dark">بيع</span></td><td class="nm">زينب علي حمود</td><td><span class="doc">A6</span></td><td class="num"><span class="amt"><b>95,000</b><small>مسدّد</small></span></td><td><span class="pill gray">منتهٍ</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>عقد بيع جديد</h3></div>
+        <div class="card-b">
+          <div class="form-row">
+            <div class="field"><label>العميل</label><select><option>علي طلال دهيني</option><option>آمنة دهيني</option></select></div>
+            <div class="field"><label>الوحدة</label><select><option>برج المهدي — A3</option><option>مبنى السلام — D4</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>قيمة البيع</label><input class="mono-in" value="80,000.00"></div>
+            <div class="field"><label>العملة</label><select><option>دولار</option><option>ليرة</option><option>يورو</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>الدفعة الأولى</label><input class="mono-in" value="10,000.00"></div>
+            <div class="field"><label>عدد الأقساط</label><input class="mono-in" value="10"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>تاريخ أول قسط</label><input class="mono-in" value="2026-09-01"></div>
+            <div class="field"><label>دورية القسط</label><select><option>شهري</option><option>ربع سنوي</option><option>سنوي</option></select></div>
+          </div>
+          <div class="note" style="margin:4px 0 12px"><span>◆</span><div>عند الحفظ يُنشئ النظام جدول الأقساط تلقائياً ويقيّد البيع: <b>مدين ذمم العميل / دائن إيرادات المبيعات</b>.</div></div>
+          <button class="btn primary">حفظ العقد وإنشاء الجدول</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= جدول الدفعات ================= -->
+  <section class="screen" id="schedule">
+    <div class="head">
+      <div><h1>جدول الدفعات</h1><p>عقد <span class="doc">SALE-0001</span> — علي طلال دهيني · A3</p></div>
+      <div class="spacer"></div><button class="btn">تعديل الجدول</button><button class="btn primary">تسجيل دفعة</button>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h"><h3>الأقساط</h3><div class="spacer"></div><span class="sub">٦ مدفوعة · ١ متأخر · ٣ قادمة</span></div>
+        <div class="card-b">
+          <div class="sched">
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">الدفعة الأولى</div><div class="sub">2019-09-12 · نقداً</div></div><span class="amt cr"><b>10,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">قسط ٢</div><div class="sub">2020-03-09 · شيك</div></div><span class="amt cr"><b>5,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">قسط ٣</div><div class="sub">2021-09-11</div></div><span class="amt cr"><b>4,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">قسط ٤</div><div class="sub">2023-05-15</div></div><span class="amt cr"><b>3,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">قسط ٥</div><div class="sub">2024-02-06</div></div><span class="amt cr"><b>1,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n paid">✓</span><div style="flex:1"><div class="nm">قسط ٦</div><div class="sub">2026-07-15 · تحويل</div></div><span class="amt cr"><b>2,000</b><small>مدفوع</small></span></div>
+            <div class="sched-row"><span class="sched-n late">!</span><div style="flex:1"><div class="nm">قسط ٧</div><div class="sub">استحق 2026-06-15 · <span class="pill late">متأخر ٦٩ يوم</span></div></div><span class="amt dr"><b>8,000</b><small>مستحق</small></span></div>
+            <div class="sched-row"><span class="sched-n">٨</span><div style="flex:1"><div class="nm">قسط ٨</div><div class="sub">يستحق 2026-09-15</div></div><span class="amt"><b>8,000</b><small>قادم</small></span></div>
+            <div class="sched-row"><span class="sched-n">٩</span><div style="flex:1"><div class="nm">قسط ٩</div><div class="sub">يستحق 2026-12-15</div></div><span class="amt"><b>8,000</b><small>قادم</small></span></div>
+            <div class="sched-row"><span class="sched-n">١٠</span><div style="flex:1"><div class="nm">قسط ١٠ — الأخير</div><div class="sub">يستحق 2027-03-15</div></div><span class="amt"><b>9,000</b><small>قادم</small></span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-h"><h3>تقدّم السداد</h3></div>
+          <div class="card-b">
+            <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span class="sub">مدفوع من أصل ٨٠,٠٠٠</span><b class="mono">31%</b></div>
+            <div class="sched-bar" style="height:8px"><i style="width:31%"></i></div>
+            <div style="height:16px"></div>
+            <div class="kv"><span>المدفوع</span><b class="mono" style="color:var(--credit)">25,000.00</b></div>
+            <div class="kv"><span>المتبقي</span><b class="mono" style="color:var(--debit)">55,000.00</b></div>
+            <div class="kv"><span>المتأخر حالياً</span><b class="mono" style="color:var(--debit)">8,000.00</b></div>
+            <div class="kv"><span>القسط القادم</span><b class="mono">2026-09-15</b></div>
+          </div>
+        </div>
+        <div style="height:14px"></div>
+        <div class="card">
+          <div class="card-h"><h3>تنبيهات التحصيل</h3></div>
+          <div class="card-b">
+            <div class="audit"><span class="ab del"></span><div>تذكير أول أُرسل للعميل عبر SMS<time>2026-06-20</time></div></div>
+            <div class="audit"><span class="ab edit"></span><div>تذكير ثانٍ — اتصال هاتفي<time>2026-07-10</time></div></div>
+            <div class="audit"><span class="ab del"></span><div>إنذار خطي بالتأخير<time>2026-08-05</time></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= الوصولات ================= -->
+  <section class="screen" id="receipts">
+    <div class="head">
+      <div><h1>الوصولات — قبض</h1><p>٢,٠٤٢ وصل مسجّل</p></div>
+      <div class="spacer"></div><button class="btn">تصدير</button><button class="btn primary">+ وصل قبض</button>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h"><h3>آخر الوصولات</h3></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>رقم الوصل</th><th>التاريخ</th><th>العميل</th><th>الطريقة</th><th class="num">المبلغ</th></tr></thead>
+            <tbody>
+              <tr><td><span class="doc">REC-2041</span></td><td><span class="doc">2026-07-15</span></td><td class="nm">علي طلال دهيني</td><td><span class="pill gray">تحويل</span></td><td class="num"><span class="amt cr"><b>2,000</b><small>179,000,000 ل.ل</small></span></td></tr>
+              <tr><td><span class="doc">REC-2040</span></td><td><span class="doc">2026-07-01</span></td><td class="nm">آمنة دهيني</td><td><span class="pill gray">نقداً</span></td><td class="num"><span class="amt cr"><b>1,200</b><small>107,400,000 ل.ل</small></span></td></tr>
+              <tr><td><span class="doc">REC-2039</span></td><td><span class="doc">2026-06-28</span></td><td class="nm">حسين صالح قصير</td><td><span class="pill gray">شيك</span></td><td class="num"><span class="amt cr"><b>9,000</b><small>805,500,000 ل.ل</small></span></td></tr>
+              <tr><td><span class="doc">REC-2038</span></td><td><span class="doc">2026-06-11</span></td><td class="nm">مريم كامل ياسين</td><td><span class="pill gray">نقداً</span></td><td class="num"><span class="amt cr"><b>15,000</b><small>1,342,500,000 ل.ل</small></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>وصل قبض جديد</h3><div class="spacer"></div><span class="doc">REC-2042</span></div>
+        <div class="card-b">
+          <div class="form-row">
+            <div class="field"><label>العميل</label><select><option>علي طلال دهيني</option><option>آمنة دهيني</option></select></div>
+            <div class="field"><label>العقد</label><select><option>SALE-0001 — A3</option><option>بدون عقد</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>المبلغ</label><input class="mono-in" value="8,000.00"></div>
+            <div class="field"><label>العملة</label><select><option>دولار</option><option>ليرة</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>سعر الصرف</label><input class="mono-in" value="89,500"><div class="hint">يُحفظ مع الوصل للأرشيف</div></div>
+            <div class="field"><label>يعادل بالليرة</label><input class="mono-in" value="716,000,000" disabled></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>طريقة الدفع</label><select><option>نقداً</option><option>شيك</option><option>تحويل مصرفي</option></select></div>
+            <div class="field"><label>الصندوق / المصرف</label><select><option>الصندوق الرئيسي</option><option>بنك بيروت</option></select></div>
+          </div>
+          <div class="je-bal">
+            <span>القيد المتولّد: مدين الصندوق ٨,٠٠٠ / دائن ذمم العميل ٨,٠٠٠</span><span>✓ متوازن</span>
+          </div>
+          <div style="height:12px"></div>
+          <button class="btn primary">حفظ وطباعة الوصل</button>
+          <button class="btn">حفظ فقط</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= المدفوعات ================= -->
+  <section class="screen" id="payments">
+    <div class="head">
+      <div><h1>المدفوعات — صرف</h1><p>مصاريف التشغيل والصيانة والموردون</p></div>
+      <div class="spacer"></div><button class="btn primary">+ سند صرف</button>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>رقم السند</th><th>التاريخ</th><th>المستفيد</th><th>البيان</th><th>الحساب</th><th class="num">المبلغ</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">PAY-0014</span></td><td><span class="doc">2026-08-20</span></td><td class="nm">مؤسسة الكهرباء</td><td class="sub">فاتورة مولّد — آب</td><td><span class="doc">6210</span> مصاريف خدمات</td><td class="num"><span class="amt dr"><b>1,450</b><small>129,775,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">PAY-0013</span></td><td><span class="doc">2026-08-11</span></td><td class="nm">شركة الصيانة المتحدة</td><td class="sub">صيانة مصعد برج المهدي</td><td><span class="doc">6230</span> صيانة</td><td class="num"><span class="amt dr"><b>800</b><small>71,600,000 ل.ل</small></span></td></tr>
+            <tr><td><span class="doc">PAY-0012</span></td><td><span class="doc">2026-08-01</span></td><td class="nm">ناطور البناء</td><td class="sub">راتب شهر آب</td><td><span class="doc">6110</span> رواتب</td><td class="num"><span class="amt dr"><b>400</b><small>35,800,000 ل.ل</small></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= قيود اليومية ================= -->
+  <section class="screen" id="journal">
+    <div class="head">
+      <div><h1>قيود اليومية</h1><p>٢,٣٧٨ قيد — القيد غير المتوازن لا يُرحّل</p></div>
+      <div class="spacer"></div><button class="btn primary">+ قيد يدوي</button>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h"><h3>القيود الأخيرة</h3></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>رقم القيد</th><th>التاريخ</th><th>النوع</th><th>البيان</th><th class="num">المبلغ</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td><span class="doc">JE-2412</span></td><td><span class="doc">2026-08-20</span></td><td><span class="pill gray">صرف</span></td><td class="sub">فاتورة كهرباء</td><td class="num"><span class="mono">1,450.00</span></td><td><span class="pill ok">مرحّل</span></td></tr>
+              <tr><td><span class="doc">JE-2411</span></td><td><span class="doc">2026-07-15</span></td><td><span class="pill ok">قبض</span></td><td class="sub">قسط ٦ — علي دهيني</td><td class="num"><span class="mono">2,000.00</span></td><td><span class="pill ok">مرحّل</span></td></tr>
+              <tr><td><span class="doc">JE-2410</span></td><td><span class="doc">2026-07-02</span></td><td><span class="pill dark">مبيع</span></td><td class="sub">بيع شقة D4</td><td class="num"><span class="mono">92,000.00</span></td><td><span class="pill ok">مرحّل</span></td></tr>
+              <tr><td><span class="doc">JE-2409</span></td><td><span class="doc">2026-07-01</span></td><td><span class="pill wait">تسوية</span></td><td class="sub">فرق سعر صرف</td><td class="num"><span class="mono">312.00</span></td><td><span class="pill wait">مسودّة</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>قيد يدوي</h3><div class="spacer"></div><span class="doc">JE-2413</span></div>
+        <div class="card-b">
+          <div class="form-row">
+            <div class="field"><label>التاريخ</label><input class="mono-in" value="2026-08-23"></div>
+            <div class="field"><label>النوع</label><select><option>تسوية</option><option>افتتاحي</option><option>تحويل</option></select></div>
+          </div>
+          <div class="field" style="margin-bottom:12px"><label>البيان</label><input value="تسوية فرق سعر صرف — آب"></div>
+          <div style="border-top:1px solid var(--line);padding-top:8px">
+            <div class="je-line" style="border-bottom:1px solid var(--line);padding-bottom:6px">
+              <span class="sub">الحساب</span><span class="sub" style="text-align:left">مدين</span><span class="sub" style="text-align:left">دائن</span><span></span>
+            </div>
+            <div class="je-line">
+              <select><option>4110006 — علي طلال دهيني</option></select>
+              <input class="mono-in" value="312.00"><input class="mono-in" value=""><button class="btn" style="padding:4px 8px">×</button>
+            </div>
+            <div class="je-line">
+              <select><option>7710 — أرباح فروق صرف</option></select>
+              <input class="mono-in" value=""><input class="mono-in" value="312.00"><button class="btn" style="padding:4px 8px">×</button>
+            </div>
+          </div>
+          <button class="btn" style="margin-top:10px">+ إضافة سطر</button>
+          <div class="je-bal"><span>مجموع المدين ٣١٢٫٠٠ = مجموع الدائن ٣١٢٫٠٠</span><span>✓ متوازن</span></div>
+          <div style="height:12px"></div>
+          <button class="btn primary">ترحيل القيد</button><button class="btn">حفظ كمسودّة</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ميزان المراجعة ================= -->
+  <section class="screen" id="trial">
+    <div class="head">
+      <div><h1>ميزان المراجعة</h1><p>حتى ٢٣ آب ٢٠٢٦ — بالدولار</p></div>
+      <div class="spacer"></div><button class="btn">تغيير الفترة</button><button class="btn">تصدير Excel</button>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الحساب</th><th>الاسم</th><th class="num">مدين</th><th class="num">دائن</th><th class="num">الرصيد</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">101</span></td><td class="nm">الصندوق</td><td class="num mono">184,300.00</td><td class="num mono">62,100.00</td><td class="num mono" style="color:var(--debit)">122,200.00</td></tr>
+            <tr><td><span class="doc">102</span></td><td class="nm">بنك بيروت</td><td class="num mono">96,000.00</td><td class="num mono">31,400.00</td><td class="num mono" style="color:var(--debit)">64,600.00</td></tr>
+            <tr style="background:#FBFBF9"><td><span class="doc">411</span></td><td class="nm">ذمم عملاء</td><td class="num mono">1,842,000.00</td><td class="num mono">557,500.00</td><td class="num mono" style="color:var(--debit)">1,284,500.00</td></tr>
+            <tr><td style="padding-right:32px"><span class="doc">41100006</span></td><td class="sub">علي طلال دهيني</td><td class="num mono">80,000.00</td><td class="num mono">25,000.00</td><td class="num mono">55,000.00</td></tr>
+            <tr><td style="padding-right:32px"><span class="doc">41100014</span></td><td class="sub">آمنة دهيني</td><td class="num mono">14,400.00</td><td class="num mono">12,000.00</td><td class="num mono">2,400.00</td></tr>
+            <tr><td><span class="doc">151</span></td><td class="nm">مؤونات لمواجهة أخطار</td><td class="num sub">—</td><td class="num mono">18,000.00</td><td class="num mono" style="color:var(--credit)">18,000.00</td></tr>
+            <tr><td><span class="doc">701</span></td><td class="nm">إيرادات بيع عقارات</td><td class="num sub">—</td><td class="num mono">1,842,000.00</td><td class="num mono" style="color:var(--credit)">1,842,000.00</td></tr>
+            <tr><td><span class="doc">705</span></td><td class="nm">إيرادات إيجارات</td><td class="num sub">—</td><td class="num mono">64,800.00</td><td class="num mono" style="color:var(--credit)">64,800.00</td></tr>
+            <tr><td><span class="doc">611</span></td><td class="nm">رواتب وأجور</td><td class="num mono">14,400.00</td><td class="num sub">—</td><td class="num mono" style="color:var(--debit)">14,400.00</td></tr>
+            <tr><td><span class="doc">621</span></td><td class="nm">مصاريف خدمات وصيانة</td><td class="num mono">27,900.00</td><td class="num sub">—</td><td class="num mono" style="color:var(--debit)">27,900.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ledger-foot">
+        <div><div class="lf-lbl">مجموع المدين</div><div class="lf-val">2,248,600.00</div></div>
+        <div><div class="lf-lbl">مجموع الدائن</div><div class="lf-val">2,248,600.00</div></div>
+        <div><span class="pill ok" style="font-size:12px;padding:5px 12px"><i class="dot"></i> الميزان متوازن</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= دليل الحسابات ================= -->
+  <section class="screen" id="accounts">
+    <div class="head">
+      <div><h1>دليل الحسابات</h1><p>٥٦٥ حساب — شجرة هرمية</p></div>
+      <div class="spacer"></div><button class="btn primary">+ حساب</button>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الرمز</th><th>الاسم</th><th>النوع</th><th>العملة</th><th>يقبل القيود</th></tr></thead>
+          <tbody>
+            <tr><td><span class="doc">1</span></td><td class="nm">الأصول</td><td><span class="pill gray">أصل</span></td><td class="sub">—</td><td class="sub">لا — حساب رئيسي</td></tr>
+            <tr><td style="padding-right:28px"><span class="doc">101</span></td><td>الصندوق</td><td><span class="pill gray">أصل</span></td><td>متعدد</td><td><span class="pill ok">نعم</span></td></tr>
+            <tr><td style="padding-right:28px"><span class="doc">411</span></td><td>ذمم عملاء</td><td><span class="pill gray">أصل</span></td><td class="sub">—</td><td class="sub">لا — حساب رئيسي</td></tr>
+            <tr><td style="padding-right:52px"><span class="doc">41100006</span></td><td class="sub">علي طلال دهيني</td><td><span class="pill gray">عميل</span></td><td>دولار</td><td><span class="pill ok">نعم</span></td></tr>
+            <tr><td style="padding-right:52px"><span class="doc">41100014</span></td><td class="sub">آمنة دهيني</td><td><span class="pill gray">عميل</span></td><td>دولار</td><td><span class="pill ok">نعم</span></td></tr>
+            <tr><td><span class="doc">151</span></td><td class="nm">مؤونات لمواجهة أخطار</td><td><span class="pill gray">خصم</span></td><td>دولار</td><td><span class="pill ok">نعم</span></td></tr>
+            <tr><td><span class="doc">701</span></td><td class="nm">إيرادات بيع عقارات</td><td><span class="pill gray">إيراد</span></td><td>دولار</td><td><span class="pill ok">نعم</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= التقارير ================= -->
+  <section class="screen" id="reports">
+    <div class="head"><div><h1>التقارير</h1><p>كل تقرير قابل للطباعة والتصدير إلى Excel و PDF</p></div></div>
+    <div class="grid-3">
+      <div class="rep"><div class="ric">▥</div><div><h4>كشف حساب عميل</h4><p>حركات العميل مع الرصيد الجاري بالعملتين</p></div></div>
+      <div class="rep"><div class="ric">⚖</div><div><h4>ميزان المراجعة</h4><p>أرصدة كل الحسابات لفترة محددة</p></div></div>
+      <div class="rep"><div class="ric">◷</div><div><h4>الدفعات المستحقة</h4><p>ما استحق ولم يُحصّل، مرتّباً بالتأخير</p></div></div>
+      <div class="rep"><div class="ric">▦</div><div><h4>حالة الوحدات</h4><p>المتاح والمباع والمؤجّر لكل بناء</p></div></div>
+      <div class="rep"><div class="ric">↓</div><div><h4>يومية القبض</h4><p>الوصولات خلال فترة، حسب الصندوق</p></div></div>
+      <div class="rep"><div class="ric">↑</div><div><h4>يومية الصرف</h4><p>المصاريف موزّعة على الحسابات</p></div></div>
+      <div class="rep"><div class="ric">▧</div><div><h4>الإيرادات والمصاريف</h4><p>نتيجة الفترة — إيجارات ومبيعات ومصاريف</p></div></div>
+      <div class="rep"><div class="ric">≡</div><div><h4>دفتر اليومية</h4><p>كل القيود بالتسلسل مع التفاصيل</p></div></div>
+      <div class="rep"><div class="ric">◈</div><div><h4>فروقات سعر الصرف</h4><p>أثر تغيّر السعر على الأرصدة بالليرة</p></div></div>
+    </div>
+  </section>
+
+  <!-- ================= الإعدادات ================= -->
+  <section class="screen" id="settings">
+    <div class="head"><div><h1>الإعدادات والصلاحيات</h1><p>المستخدمون، التحكم بالحذف، وسجل التدقيق</p></div></div>
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-h"><h3>المستخدمون</h3><div class="spacer"></div><button class="btn">+ مستخدم</button></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>المستخدم</th><th>الدور</th><th>الصلاحيات</th><th>الحالة</th></tr></thead>
+              <tbody>
+                <tr><td class="nm">علي (admin)</td><td><span class="pill dark">مدير</span></td><td class="sub">كل الصلاحيات + الحذف النهائي</td><td><span class="pill ok">نشط</span></td></tr>
+                <tr><td class="nm">حسن</td><td><span class="pill gray">محاسب</span></td><td class="sub">قيود ووصولات — بدون حذف</td><td><span class="pill ok">نشط</span></td></tr>
+                <tr><td class="nm">زينب</td><td><span class="pill gray">مبيعات</span></td><td class="sub">عقود وعملاء — قراءة المالية</td><td><span class="pill ok">نشط</span></td></tr>
+                <tr><td class="nm">محمد</td><td><span class="pill gray">قراءة فقط</span></td><td class="sub">التقارير فقط</td><td><span class="pill gray">موقوف</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="height:14px"></div>
+        <div class="card">
+          <div class="card-h"><h3>التحكم بحذف البيانات</h3></div>
+          <div class="card-b">
+            <div class="note" style="margin-bottom:14px"><span>◆</span><div>الحذف في النظام <b>حذف منطقي</b>: يبقى السجل محفوظاً ويُخفى من الشاشات، ويُسجَّل من حذفه ومتى. الحذف النهائي متاح للمدير فقط ويترك أثراً في السجل.</div></div>
+            <div class="kv"><span>حذف وصل قبض</span><b>مدير فقط</b></div>
+            <div class="kv"><span>حذف قيد مرحّل</span><b>ممنوع — يُعكَس بقيد مضاد</b></div>
+            <div class="kv"><span>حذف عميل له حركات</span><b>ممنوع</b></div>
+            <div class="kv"><span>حذف عقد ساري</span><b>مدير فقط + سبب إلزامي</b></div>
+            <div class="kv"><span>مدة الاحتفاظ بالمحذوفات</span><b>غير محدودة</b></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-h"><h3>سجل التدقيق</h3><div class="spacer"></div><span class="sub">آخر ٢٤ ساعة</span></div>
+          <div class="card-b">
+            <div class="audit"><span class="ab add"></span><div><b>حسن</b> أنشأ وصل قبض <span class="doc">REC-2041</span><time>13:42</time></div></div>
+            <div class="audit"><span class="ab edit"></span><div><b>علي</b> عدّل سعر الصرف من ٨٩,٠٠٠ إلى ٨٩,٥٠٠<time>11:20</time></div></div>
+            <div class="audit"><span class="ab add"></span><div><b>زينب</b> أضافت عقد <span class="doc">SALE-0019</span><time>10:05</time></div></div>
+            <div class="audit"><span class="ab del"></span><div><b>علي</b> حذف مسودّة قيد <span class="doc">JE-2408</span><time>09:31</time></div></div>
+            <div class="audit"><span class="ab edit"></span><div><b>حسن</b> عدّل بيانات العميل «آمنة دهيني»<time>08:47</time></div></div>
+          </div>
+        </div>
+        <div style="height:14px"></div>
+        <div class="card">
+          <div class="card-h"><h3>العملات وسعر الصرف</h3></div>
+          <div class="card-b">
+            <div class="kv"><span>العملة الأساسية</span><b>دولار أميركي — USD</b></div>
+            <div class="kv"><span>ليرة لبنانية</span><b class="mono">89,500 / $</b></div>
+            <div class="kv"><span>يورو</span><b class="mono">0.92 / $</b></div>
+            <div class="kv"><span>تحديث السعر</span><b>يدوي — يُسجَّل مع كل مستند</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </div><!-- /wrap -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ===== واجهة البناء: توليد الوحدات =====
+(function(){
+  const board=document.getElementById('elev');
+  if(!board) return;
+  const states=[
+    ['sold','sold','rented','free'],
+    ['sold','rented','sold','free'],
+    ['sold','sold','reserved','rented'],
+    ['rented','sold','sold','free'],
+    ['sold','free','rented','sold'],
+    ['reserved','sold','sold','rented'],
+    ['sold','rented','free','sold'],
+    ['sold','sold','rented','free']
+  ];
+  const label={sold:'مباعة',rented:'مؤجّرة',reserved:'محجوزة',free:'متاحة'};
+  states.forEach((row,i)=>{
+    const f=document.createElement('div');f.className='floor';
+    const n=document.createElement('span');n.className='floor-no';n.textContent='ط'+(i+1);
+    f.appendChild(n);
+    row.forEach((s,j)=>{
+      const u=document.createElement('button');
+      u.className='unit '+s;
+      u.textContent=String.fromCharCode(65+j)+(i+1);
+      u.title=String.fromCharCode(65+j)+(i+1)+' — '+label[s];
+      u.addEventListener('click',()=>go('units'));
+      f.appendChild(u);
+    });
+    board.appendChild(f);
+  });
+})();
+
+// ===== التنقّل بين الشاشات =====
+const titles={
+  dashboard:['لوحة التحكم','نظرة عامة'],
+  buildings:['الأبنية','٤ أبنية'],
+  units:['الشقق والوحدات','٨٤ وحدة'],
+  clients:['العملاء','٥٦٥ حساب'],
+  statement:['كشف حساب','علي طلال دهيني'],
+  contracts:['العقود','بيع وإيجار'],
+  schedule:['جدول الدفعات','SALE-0001'],
+  receipts:['الوصولات','قبض'],
+  payments:['المدفوعات','صرف'],
+  journal:['قيود اليومية','٢,٣٧٨ قيد'],
+  trial:['ميزان المراجعة','حتى اليوم'],
+  accounts:['دليل الحسابات','٥٦٥ حساب'],
+  reports:['التقارير','قابلة للتصدير'],
+  settings:['الإعدادات','الصلاحيات والتدقيق']
+};
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on',a.dataset.go===id));
+  const t=titles[id]||['',''];
+  document.getElementById('crumb').innerHTML=t[0]+' <small>'+t[1]+'</small>';
+  window.scrollTo({top:0,behavior:'smooth'});
+  document.getElementById('nav').classList.remove('open');
+}
+document.querySelectorAll('[data-go]').forEach(el=>{
+  // العناصر التي ليست أزراراً تحتاج دوراً وتسلسل تنقّل صريحاً
+  if(el.tagName!=='BUTTON'){
+    el.setAttribute('role','button');
+    el.setAttribute('tabindex','0');
+  }
+  el.addEventListener('click',e=>{e.preventDefault();go(el.dataset.go)});
+  el.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();go(el.dataset.go);}
+  });
+});
+
+// ===== القائمة على الموبايل =====
+document.getElementById('navBtn').addEventListener('click',()=>{
+  document.getElementById('nav').classList.toggle('open');
+});
+
+// ===== تبويبات =====
+document.querySelectorAll('.tabs').forEach(g=>{
+  g.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      g.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+});
+</script>
+</body>
+</html>
