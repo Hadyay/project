@@ -1,36 +1,147 @@
 /* ============================================================================
-   Theme — the redesign of 2026-09-27 (client: "simpler, clearer, professional
-   tables, clear font, collapsible menu, Arabic / English").
+   Theme — the look of the app, loaded AFTER globals.css.
 
-   Loaded AFTER globals.css. globals.css stays the verbatim port of
-   erp-ui-design.html; everything that changes the look lives here, by
-   redefining its tokens and restyling its classes — the class names every
-   screen emits are unchanged.
+   globals.css stays the verbatim port of erp-ui-design.html; everything that
+   changes the look lives here, by redefining its tokens and restyling its
+   classes — the class names every screen emits are unchanged.
 
    Everything is direction-neutral (start/end, inset-inline, border-inline) so
    the same rules serve Arabic (rtl) and English (ltr).
+
+   Colors are TOKENS only (PLAN.md §2.3). Light is the default; dark is the
+   same token names under :root[data-theme="dark"], set by lib/theme.tsx (and
+   before first paint by the script in app/layout.tsx). New CSS must use these
+   tokens, never hex, or it will not follow the theme. Print is always light:
+   print.css paints black on white whatever the screen theme is.
    ============================================================================ */
 
 :root{
-  --ink:#0F172A;
-  --ink-2:#1E293B;
-  --ink-soft:#475569;
-  --stone:#F1F5F9;
-  --paper:#FFFFFF;
-  --line:#CBD5E1;
-  --line-soft:#E2E8F0;
-  --brass:#1D4ED8;          /* the accent: links, focus, active menu */
-  --brass-soft:#DBEAFE;
-  --debit:#B91C1C;
-  --credit:#15803D;
-  --warn:#B45309;
   --r:8px;
   --nav-w:250px;
   --f-display:var(--font-cairo),"Segoe UI",Tahoma,sans-serif;
   --f-body:var(--font-cairo),"Segoe UI",Tahoma,sans-serif;
   /* Figures: Roboto with tabular digits, so columns of amounts line up. */
   --f-mono:var(--font-roboto),Arial,sans-serif;
+}
+
+/* Light. Also re-declared on the paper documents (report sheets, vouchers) in
+   dark mode: they are white paper on screen as on the printer, and a custom
+   property that refers to another (--ink: var(--text)) is resolved where it
+   is declared, so the whole block has to be re-declared there, not just
+   --text. */
+:root,
+:root[data-theme="dark"] :is(.rs,.sheet){
+  /* ---- semantic tokens ---- */
+  --bg:#F1F5F9;             /* page */
+  --surface:#FFFFFF;        /* cards, inputs, menus */
+  --surface-2:#F8FAFC;      /* inset areas, footers */
+  --text:#0F172A;
+  --muted:#475569;
+  --border:#CBD5E1;
+  --border-soft:#E2E8F0;
+  --accent:#1D4ED8;         /* links, focus, active items (text on surface) */
+  --accent-soft:#DBEAFE;
+  --accent-line:#BFDBFE;
+  --primary:#1D4ED8;        /* filled buttons (white text on it) */
+  --primary-hover:#1E40AF;
+  --on-primary:#FFFFFF;
+  --danger:#B91C1C;
+  --danger-strong:#DC2626;  /* badges, late markers */
+  --danger-soft:#FEF2F2;
+  --danger-line:#FCA5A5;
+  --danger-text:#991B1B;
+  --success:#15803D;
+  --success-soft:#ECFDF5;
+  --success-line:#A7F3D0;
+  --warning:#B45309;
+  --warning-soft:#FFFBEB;
+  --warning-line:#FDE68A;
+  --zebra:#F8FAFC;
+  --hover:#EFF6FF;
+  --head-bg:#E2E8F0;        /* table header band */
+  --head-rule:#94A3B8;
+  --foot-bg:#F1F5F9;
+  --solid:#1E293B;          /* dark chips (role pill, rate label) */
+  --on-solid:#FFFFFF;
+  --nav-bg:#0F172A;
+  --nav-text:#CBD5E1;
+  --nav-muted:#94A3B8;
+  --nav-label:#64748B;
+  --nav-hover:rgba(148,163,184,.12);
+  --nav-on:rgba(59,130,246,.18);
+  --nav-on-line:#3B82F6;
+  --chart:#3B82F6;
+  --chart-strong:#1D4ED8;
   --shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.05);
+  --shadow-lg:0 8px 24px rgba(15,23,42,.12);
+
+  /* ---- the mockup's token names, mapped onto the semantic ones ---- */
+  --ink:var(--text);
+  --ink-2:#1E293B;
+  --ink-soft:var(--muted);
+  --stone:var(--bg);
+  --paper:var(--surface);
+  --line:var(--border);
+  --line-soft:var(--border-soft);
+  --brass:var(--accent);
+  --brass-soft:var(--accent-soft);
+  --debit:var(--danger);
+  --credit:var(--success);
+  --warn:var(--warning);
+  color-scheme:light;
+}
+
+/* Dark: a deep slate, not black — long hours on an office monitor. Surfaces
+   step up in lightness (bg < surface < surface-2) so cards still read as
+   cards without heavy borders; accents are lifted a step for contrast.
+   Screen only: on paper every page is the light theme. */
+@media screen{
+:root[data-theme="dark"]{
+  --bg:#0B1220;
+  --surface:#111A2E;
+  --surface-2:#172338;
+  --text:#E2E8F0;
+  --muted:#94A3B8;
+  --border:#2B3A57;
+  --border-soft:#1F2B45;
+  --accent:#60A5FA;
+  --accent-soft:rgba(96,165,250,.16);
+  --accent-line:rgba(96,165,250,.38);
+  --primary:#2563EB;
+  --primary-hover:#1D4ED8;
+  --on-primary:#FFFFFF;
+  --danger:#F87171;
+  --danger-strong:#DC2626;
+  --danger-soft:rgba(239,68,68,.13);
+  --danger-line:rgba(248,113,113,.45);
+  --danger-text:#FCA5A5;
+  --success:#34D399;
+  --success-soft:rgba(52,211,153,.13);
+  --success-line:rgba(52,211,153,.4);
+  --warning:#FBBF24;
+  --warning-soft:rgba(251,191,36,.12);
+  --warning-line:rgba(251,191,36,.35);
+  --zebra:#0F1829;
+  --hover:rgba(96,165,250,.09);
+  --head-bg:#1A2641;
+  --head-rule:#3B4B6E;
+  --foot-bg:#172338;
+  --solid:#334155;
+  --on-solid:#F1F5F9;
+  --nav-bg:#070D1A;
+  --nav-text:#CBD5E1;
+  --nav-muted:#94A3B8;
+  --nav-label:#64748B;
+  --nav-hover:rgba(148,163,184,.10);
+  --nav-on:rgba(59,130,246,.22);
+  --nav-on-line:#60A5FA;
+  --chart:#3B82F6;
+  --chart-strong:#60A5FA;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 1px 3px rgba(0,0,0,.25);
+  --shadow-lg:0 10px 28px rgba(0,0,0,.45);
+  --ink-2:#CBD5E1;
+  color-scheme:dark;
+}
 }
 
 body{font-size:15px;line-height:1.65;background:var(--stone);color:var(--ink)}
@@ -40,21 +151,21 @@ body{font-size:15px;line-height:1.65;background:var(--stone);color:var(--ink)}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 
 /* ---------------------------------------------------------------- the shell */
-.nav{background:#0F172A;color:#CBD5E1;transition:width .2s,margin .2s}
+.nav{background:var(--nav-bg);color:var(--nav-text);transition:width .2s,margin .2s}
 .brand{padding:20px 20px 16px}
 .brand-mark{font-family:var(--f-display);font-size:17px;font-weight:700;color:#fff}
-.brand-sub{color:#94A3B8;font-size:12px}
-.nav-label{color:#64748B;font-size:11px;letter-spacing:.6px;padding:0 20px 6px}
+.brand-sub{color:var(--nav-muted);font-size:12px}
+.nav-label{color:var(--nav-label);font-size:11px;letter-spacing:.6px;padding:0 20px 6px}
 .nav a{
-  font-size:14.5px;padding:9px 20px;color:#CBD5E1;
+  font-size:14.5px;padding:9px 20px;color:var(--nav-text);
   border-right:0;border-inline-start:3px solid transparent
 }
-.nav a:hover{background:rgba(148,163,184,.12);color:#fff}
-.nav a.on{background:rgba(59,130,246,.18);color:#fff;border-inline-start-color:#3B82F6}
+.nav a:hover{background:var(--nav-hover);color:#fff}
+.nav a.on{background:var(--nav-on);color:#fff;border-inline-start-color:var(--nav-on-line)}
 .nav a .ic{width:18px;font-size:14px}
-.nav-foot{color:#94A3B8;font-size:13px}
+.nav-foot{color:var(--nav-muted);font-size:13px}
 
-.topbar{height:60px;padding:0 20px;gap:14px;box-shadow:var(--shadow);border-bottom-color:var(--line-soft)}
+.topbar{height:60px;padding:0 20px;gap:14px;box-shadow:var(--shadow);border-bottom-color:var(--line-soft);background:var(--surface)}
 .crumb{font-size:16px}
 .crumb small{margin-right:0;margin-inline-start:8px;font-size:13px}
 /* The menu toggle is always there now: on a desktop it hides and shows the
@@ -78,7 +189,7 @@ body{font-size:15px;line-height:1.65;background:var(--stone);color:var(--ink)}
   border:1px solid var(--line);border-radius:var(--r);background:var(--paper);color:var(--ink);cursor:pointer
 }
 .lang-toggle:hover{border-color:var(--brass);color:var(--brass)}
-.avatar{background:var(--brass-soft);color:var(--brass);border-color:#BFDBFE}
+.avatar{background:var(--brass-soft);color:var(--brass);border-color:var(--accent-line)}
 .rate{border-radius:var(--r)}
 
 /* ---------------------------------------------------------------- page head */
@@ -91,9 +202,10 @@ body{font-size:15px;line-height:1.65;background:var(--stone);color:var(--ink)}
 .btn{border-radius:6px;font-size:14px;font-weight:600;padding:8px 14px}
 .btn.sm{font-size:13px;padding:4px 10px}
 .btn:hover{border-color:var(--brass);color:var(--brass)}
-.btn.primary{background:var(--brass);border-color:var(--brass);color:#fff}
-.btn.primary:hover{background:#1E40AF;border-color:#1E40AF;color:#fff}
-.btn.danger{color:var(--debit)}
+.btn.primary,.btn.brass{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.btn.primary:hover,.btn.brass:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:var(--on-primary)}
+.btn.danger{color:var(--debit);border-color:var(--danger-line)}
+.btn.danger:hover{background:var(--danger-soft);border-color:var(--debit)}
 .field input,.field select,.field textarea{border-radius:6px;font-size:14.5px}
 .pill{border-radius:999px;font-size:12.5px}
 
@@ -114,7 +226,7 @@ body{font-size:15px;line-height:1.65;background:var(--stone);color:var(--ink)}
 table{font-size:14.5px;border-collapse:collapse}
 thead th{
   text-align:start;font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:0;
-  background:#E2E8F0;padding:10px 12px;border-bottom:2px solid #94A3B8;
+  background:var(--head-bg);padding:10px 12px;border-bottom:2px solid var(--head-rule);
   border-inline-start:1px solid var(--line)
 }
 thead th:first-child{border-inline-start:0}
@@ -123,14 +235,15 @@ tbody td{
   border-inline-start:1px solid var(--line-soft)
 }
 tbody td:first-child{border-inline-start:0}
-tbody tr:nth-child(even){background:#F8FAFC}
-tbody tr:hover{background:#EFF6FF}
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr:hover{background:var(--hover)}
+tbody tr.row-link:hover{background:var(--accent-soft)}
 td.num,th.num{text-align:end}
 tfoot td,tfoot th{
-  padding:10px 12px;font-weight:700;background:#F1F5F9;border-top:2px solid #94A3B8;
+  padding:10px 12px;font-weight:700;background:var(--foot-bg);border-top:2px solid var(--head-rule);
   border-inline-start:1px solid var(--line-soft)
 }
-.tbl-wrap thead th{background:#E2E8F0;box-shadow:inset 0 -2px 0 #94A3B8}
+.tbl-wrap thead th{background:var(--head-bg);box-shadow:inset 0 -2px 0 var(--head-rule)}
 .doc{font-size:13.5px;color:var(--ink-soft)}
 .amt b{font-size:14.5px}
 .amt.dr b{color:var(--debit)}
@@ -139,7 +252,7 @@ tfoot td,tfoot th{
 /* ---------------------------------------------------------------- search */
 .sp-box{border-radius:8px;min-height:42px}
 .sp-facet{border-radius:6px}
-.sp-facet-l{background:var(--brass)}
+.sp-facet-l{background:var(--primary);color:var(--on-primary)}
 .sp-facet-v{background:var(--brass-soft)}
 .sp-facet button{background:var(--brass-soft)}
 .pager{font-size:14px}
@@ -162,10 +275,10 @@ a.kpi{
 }
 a.kpi:hover{border-color:var(--brass);transform:translateY(-1px)}
 a.kpi::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:4px;background:var(--line)}
-a.kpi.blue::before{background:#2563EB}
+a.kpi.blue::before{background:var(--chart)}
 a.kpi.green::before{background:var(--credit)}
 a.kpi.red::before{background:var(--debit)}
-a.kpi.amber::before{background:#D97706}
+a.kpi.amber::before{background:var(--warning)}
 .kpi-lbl{font-size:13.5px;font-weight:600;color:var(--ink-soft)}
 .kpi-val{
   font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:27px;font-weight:700;
@@ -186,14 +299,14 @@ a.kpi.amber::before{background:#D97706}
   width:26px;height:26px;border-radius:6px;display:grid;place-items:center;
   background:var(--brass-soft);color:var(--brass);font-size:14px
 }
-.quick a.main{background:var(--brass);color:#fff;border-color:var(--brass)}
+.quick a.main{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
 .quick a.main .qi{background:rgba(255,255,255,.2);color:#fff}
 
 /* Monthly bars: plain CSS, no chart library. */
 .bars{display:flex;align-items:flex-end;gap:6px;height:170px;padding:10px 4px 0}
 .bars .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;height:100%;justify-content:flex-end}
-.bars .bar-v{width:100%;max-width:38px;background:#3B82F6;border-radius:4px 4px 0 0;min-height:2px}
-.bars .bar-col:hover .bar-v{background:#1D4ED8}
+.bars .bar-v{width:100%;max-width:38px;background:var(--chart);border-radius:4px 4px 0 0;min-height:2px}
+.bars .bar-col:hover .bar-v{background:var(--chart-strong)}
 .bars .bar-l{font-size:11.5px;color:var(--ink-soft);font-family:var(--f-mono);white-space:nowrap}
 .bars .bar-n{font-size:11px;font-family:var(--f-mono);color:var(--ink);white-space:nowrap}
 .list-row{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line-soft)}
@@ -230,7 +343,7 @@ td .mono,td .doc,td .amt,td.nw{white-space:nowrap}
 .perm-grid{border:1px solid var(--line-soft);border-radius:8px;overflow:hidden}
 .perm-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line-soft)}
 .perm-row:last-child{border-bottom:0}
-.perm-row:nth-child(even){background:#F8FAFC}
+.perm-row:nth-child(even){background:var(--zebra)}
 .perm-row.some .perm-module span{color:var(--brass)}
 .perm-module{display:flex;align-items:center;gap:8px;min-width:210px;font-weight:700;cursor:pointer}
 .perm-actions{display:flex;flex-wrap:wrap;gap:6px}
@@ -254,31 +367,31 @@ td .mono,td .doc,td .amt,td.nw{white-space:nowrap}
 /* ---------------------------------------------------------------- reminders */
 .nav-badge{
   margin-inline-start:auto;min-width:22px;height:20px;padding:0 6px;border-radius:999px;
-  background:#DC2626;color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;
+  background:var(--danger-strong);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;
   font-family:var(--f-mono)
 }
 .bell{
   position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;
   border:1px solid var(--line);border-radius:var(--r);background:var(--paper);text-decoration:none;font-size:17px
 }
-.bell.ring{border-color:#FCA5A5;background:#FEF2F2}
+.bell.ring{border-color:var(--danger-line);background:var(--danger-soft)}
 .bell-n{
   position:absolute;top:-7px;inset-inline-end:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;
-  background:#DC2626;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;font-family:var(--f-mono)
+  background:var(--danger-strong);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;font-family:var(--f-mono)
 }
 .alarm{display:flex;gap:16px;align-items:center}
 .alarm-n{
-  font-family:var(--f-mono);font-size:40px;font-weight:700;color:#DC2626;background:#FEF2F2;
-  border:2px solid #FCA5A5;border-radius:12px;min-width:84px;text-align:center;padding:6px 10px
+  font-family:var(--f-mono);font-size:40px;font-weight:700;color:var(--danger-strong);background:var(--danger-soft);
+  border:2px solid var(--danger-line);border-radius:12px;min-width:84px;text-align:center;padding:6px 10px
 }
 /* A late client, wherever it shows: red row edge, red pill. */
-tr.late td{background:#FEF2F2 !important}
-tr.late td:first-child{box-shadow:inset -4px 0 0 #DC2626}
-[dir="ltr"] tr.late td:first-child{box-shadow:inset 4px 0 0 #DC2626}
-.pill.late-pill{background:#DC2626;color:#fff;border-color:#DC2626;font-weight:700}
+tr.late td{background:var(--danger-soft) !important}
+tr.late td:first-child{box-shadow:inset -4px 0 0 var(--danger-strong)}
+[dir="ltr"] tr.late td:first-child{box-shadow:inset 4px 0 0 var(--danger-strong)}
+.pill.late-pill{background:var(--danger-strong);color:#fff;border-color:var(--danger-strong);font-weight:700}
 .late-banner{
   display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:14px;border-radius:10px;
-  background:#FEF2F2;border:1.5px solid #FCA5A5;color:#991B1B
+  background:var(--danger-soft);border:1.5px solid var(--danger-line);color:var(--danger-text)
 }
 .late-banner b{font-size:15.5px}
 .day-pick{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:360px}
@@ -287,6 +400,56 @@ tr.late td:first-child{box-shadow:inset -4px 0 0 #DC2626}
   font-family:var(--f-mono);font-size:14px;font-weight:600;color:var(--ink)
 }
 .day-pick .day:hover:not(:disabled){border-color:var(--brass);color:var(--brass)}
-.day-pick .day.on{background:#DC2626;border-color:#DC2626;color:#fff}
+.day-pick .day.on{background:var(--danger-strong);border-color:var(--danger-strong);color:#fff}
 .day-pick .day:disabled{opacity:.45;cursor:not-allowed}
 ul.how{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:8px;font-size:14.5px}
+
+/* ---------------------------------------------------------------- tokens over globals.css
+   globals.css is the verbatim mockup port and keeps its own hex fills (cream
+   and teal, drawn for the old palette). Route each through a token here, so
+   the port stays untouched and both themes follow. --ink is text there but
+   also a FILL under white text (.pill.dark, ledger heads, rate label, sold
+   units); in dark mode --ink is light, so those fills move to --solid. */
+.pill.ok{background:var(--success-soft);color:var(--success);border-color:var(--success-line)}
+.pill.late{background:var(--danger-soft);color:var(--danger);border-color:var(--danger-line)}
+.pill.wait{background:var(--warning-soft);color:var(--warning);border-color:var(--warning-line)}
+.pill.gray{background:var(--surface-2);color:var(--muted);border-color:var(--border)}
+.pill.dark{background:var(--solid);color:var(--on-solid)}
+.rate-lbl{background:var(--solid);color:var(--on-solid)}
+.ledger thead th,.tbl-wrap .ledger thead th{background:var(--solid);color:var(--on-solid);box-shadow:none;border-bottom:0}
+.ledger tbody tr:nth-child(even){background:var(--zebra)}
+.bal-col{background:var(--surface-2) !important;border-right:0 !important;border-inline-start:2px solid var(--accent) !important}
+.ledger-foot{background:var(--solid);color:var(--on-solid)}
+.ledger-foot .lf-lbl,.ledger-foot .lf-val small{color:var(--nav-muted)}
+.unit.sold,.sw.sold{background:var(--solid);color:var(--on-solid);border-color:var(--solid)}
+.unit.reserved,.sw.reserved{background:var(--warning-soft);border-color:var(--warning-line);color:var(--warning)}
+.bcard-top,.bar i.s{background:var(--solid)}
+.je-bal{background:var(--success-soft);border-color:var(--success-line);color:var(--success)}
+.je-bal.off{background:var(--danger-soft);border-color:var(--danger-line);color:var(--danger)}
+.note{background:var(--warning-soft);border-color:var(--warning-line);color:var(--warning)}
+.alert.err{background:var(--danger-soft);border-color:var(--danger-line);color:var(--danger)}
+.alert.ok{background:var(--success-soft);border-color:var(--success-line);color:var(--success)}
+.toast.ok{border-color:var(--success-line);background:var(--success-soft)}
+.toast.err{border-color:var(--danger-line);background:var(--danger-soft)}
+.toast{color:var(--text)}
+.modal-f{background:var(--surface-2)}
+.skeleton{background:linear-gradient(90deg,var(--bg),var(--surface-2),var(--bg));background-size:200% 100%}
+.sp-facet-v{color:var(--text)}
+.sp-custom input{background:var(--surface);color:var(--text)}
+.field input,.field select,.field textarea{background:var(--surface);color:var(--text)}
+.modal,.pop,.sp-drop,.sp-menu,.toast{box-shadow:var(--shadow-lg)}
+/* A filled state chip keeps white text readable in dark mode too. */
+:root[data-theme="dark"] :is(.sched-n.paid,.unit.rented,.sw.rented){background:#15803D;border-color:#15803D}
+:root[data-theme="dark"] .sched-n.late{background:#B91C1C;border-color:#B91C1C}
+/* Letterhead preview and logos: images drawn for white paper. */
+:root[data-theme="dark"] .rs img,:root[data-theme="dark"] .sheet img{background:#fff}
+
+/* ---------------------------------------------------------------- theme switch */
+.theme-toggle{
+  display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;
+  border:1px solid var(--line);border-radius:var(--r);background:var(--paper);color:var(--ink);
+  cursor:pointer;font-size:16px;line-height:1
+}
+.theme-toggle:hover{border-color:var(--brass);color:var(--brass)}
+/* Switching themes should not animate every border on the page. */
+.theme-switching *,.theme-switching *::before,.theme-switching *::after{transition:none !important}

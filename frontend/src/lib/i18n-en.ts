@@ -951,4 +951,7 @@ export const EN: Record<string, string> = {
   "فوترة وتحديث": "Invoice & refresh",
   "إلغاء المستند": "Void",
   "المستخدمون والأدوار": "Users & roles",
+  // Theme (2026-09-28).
+  "الوضع الفاتح": "Light mode",
+  "الوضع الداكن": "Dark mode",
 };

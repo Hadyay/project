@@ -8,6 +8,7 @@ import { BackToTop, PrintHeader } from "@/components/Filters";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { useAlertSummary } from "@/lib/alerts";
 import { Modal } from "@/components/ui";
 import { initial, money, today } from "@/lib/format";
@@ -221,7 +222,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <br />
           <button
             className="btn sm"
-            style={{ marginTop: 8, background: "transparent", color: "#C8D2DC", borderColor: "rgba(255,255,255,.16)" }}
+            style={{ marginTop: 8, background: "transparent", color: "var(--nav-text)", borderColor: "rgba(255,255,255,.16)" }}
             onClick={logout}
           >
             تسجيل الخروج
@@ -255,6 +256,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {alerts.summary.count ? <span className="bell-n">{alerts.summary.count}</span> : null}
             </Link>
           ) : null}
+          <ThemeToggle />
           <button
             className="lang-toggle"
             translate="no"
@@ -283,6 +285,22 @@ export function Shell({ children }: { children: ReactNode }) {
       <BackToTop />
       {alerts.summary && can("alerts.view") ? <PaymentAlarm userId={user.id} summary={alerts.summary} /> : null}
     </div>
+  );
+}
+
+/** Light ⇄ dark in one click; "follow Windows" is in الإعدادات ← المظهر. */
+function ThemeToggle() {
+  const { resolved, setTheme } = useTheme();
+  const dark = resolved === "dark";
+  return (
+    <button
+      className="theme-toggle"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      title={dark ? "الوضع الفاتح" : "الوضع الداكن"}
+      aria-label={dark ? "الوضع الفاتح" : "الوضع الداكن"}
+    >
+      {dark ? "☀" : "☾"}
+    </button>
   );
 }
 

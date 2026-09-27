@@ -157,7 +157,7 @@ export default function DashboardPage() {
                   ) : (
                     <div className="card-b sub">لا أرصدة نقدية.</div>
                   )}
-                  <div className="list-row" style={{ background: "#F8FAFC" }}>
+                  <div className="list-row" style={{ background: "var(--surface-2)" }}>
                     <div className="grow">
                       <b>الإجمالي</b>
                     </div>

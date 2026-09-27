@@ -6,6 +6,7 @@ import { ConfirmProvider } from "@/components/Confirm";
 import { ToastProvider } from "@/components/Toast";
 import { AuthProvider } from "@/lib/auth";
 import { LangProvider } from "@/lib/i18n";
+import { THEME_BOOT, ThemeProvider } from "@/lib/theme";
 import "./globals.css";
 import "./theme.css";
 import "./print.css";
@@ -34,14 +35,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${roboto.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Theme and direction before the first paint: no white flash in dark mode. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
       <body>
-        <LangProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <ConfirmProvider>{children}</ConfirmProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </LangProvider>
+        <ThemeProvider>
+          <LangProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <ConfirmProvider>{children}</ConfirmProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </LangProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
