@@ -21,7 +21,7 @@ New-Item -ItemType Directory -Force $staging | Out-Null
 # system does not need.
 $excludeDirs = @(".venv", "venv", "node_modules", ".next", "__pycache__", ".pytest_cache",
     "legacy_data", "logs", "dist", ".git", ".claude")
-$excludeFiles = @(".env", ".env.local", ".env.bak", "*.pyc", "*.log", "*.zip", "pids.txt", "*.tsbuildinfo")
+$excludeFiles = @(".env", ".env.local", ".env.bak", "*.pyc", "*.log", "*.zip", "pids.txt", "*.tsbuildinfo", "acc.json")
 & robocopy $Root $staging /E /XD @excludeDirs /XF @excludeFiles /NFL /NDL /NJH /NJS /NP | Out-Null
 # robocopy: 0-7 are success codes, 8+ are failures.
 if ($LASTEXITCODE -ge 8) { Fail "Copying the project failed (robocopy code $LASTEXITCODE)." }
