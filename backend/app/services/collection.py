@@ -332,6 +332,18 @@ def _fold(text: str) -> str:
     return "".join(ch for ch in text.lower() if not ("ً" <= ch <= "ْ" or ch == "ـ"))
 
 
+def _matches(client: Client, needle: str, digits: str | None) -> bool:
+    """The fields the clients list searches, plus the second phone. Phones
+    are stored as bare digits, so "70 714 379" or "70-714379" match too."""
+    fields = (client.name_ar, client.name_en, client.code, client.phone, client.phone2,
+              client.national_id, client.project, client.block)
+    if any(needle in _fold(v) for v in fields if v):
+        return True
+    return bool(digits) and any(
+        digits in "".join(ch for ch in p if ch.isdigit()) for p in (client.phone, client.phone2) if p
+    )
+
+
 def grid(
     db: Session,
     year: int,
@@ -349,15 +361,15 @@ def grid(
     snap = Snapshot(db, as_of)
     windows = [calendar_window(date(year, m, 1), as_of) for m in range(1, 13)]
     needle = _fold(q.strip()) if q and q.strip() else None
+    compact = "".join(ch for ch in (q or "") if ch not in " -/.()+")
+    digits = compact if len(compact) >= 3 and compact.isdigit() else None
 
     rows: list[GridRow] = []
     months: dict[str, list[ClientMonth]] = defaultdict(list)
     for client in snap.clients:
         if project and client.project != project:
             continue
-        if needle and not any(
-            needle in _fold(v) for v in (client.name_ar, client.code, client.phone, client.project, client.block) if v
-        ):
+        if needle and not _matches(client, needle, digits):
             continue
         cms = [snap.month(client, w) for w in windows]
         balance = snap.balance_through(client.id, as_of).quantize(CENT)

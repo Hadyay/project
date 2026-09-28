@@ -98,7 +98,8 @@ def test_collection_rate_and_the_alerts_agree(
 
 def test_payment_grid(client: TestClient, auth, usd_id: int, cash_account_id: int, revenue_id: int) -> None:
     client.put("/api/alerts/settings", headers=auth, json={"alert_day": 1, "enabled": True, "min_balance": "0"})
-    person = _charge(client, auth, usd_id, revenue_id, "صاحب الجدول", "2026-02-10", monthly_installment="1000.00", project="الهدفة 432")
+    person = _charge(client, auth, usd_id, revenue_id, "صاحب الجدول", "2026-02-10", monthly_installment="1000.00", project="الهدفة 432",
+                     phone="70714379", phone2="03123456", name_en="Grid Owner")
     _pay(client, auth, usd_id, cash_account_id, person["id"], "2026-03-05", "1000.00")
     _pay(client, auth, usd_id, cash_account_id, person["id"], "2026-04-05", "300.00")
     _charge(client, auth, usd_id, revenue_id, "آخر", "2026-02-10")
@@ -121,6 +122,10 @@ def test_payment_grid(client: TestClient, auth, usd_id: int, cash_account_id: in
     # Filters: search (Arabic-folded), project, late only.
     assert [r["client_id"] for r in client.get("/api/schedule/grid", params={"year": 2026, "as_of": "2026-06-15", "q": "صاحب"}, headers=auth).json()["rows"]] == [person["id"]]
     assert len(client.get("/api/schedule/grid", params={"year": 2026, "as_of": "2026-06-15", "project": "الهدفة 432"}, headers=auth).json()["rows"]) == 1
+    # Phones as a clerk types them (stored as bare digits), the second phone, the English name.
+    for q in ("70 714 379", "70-714379", "03123456", "grid owner"):
+        found = client.get("/api/schedule/grid", params={"year": 2026, "as_of": "2026-06-15", "q": q}, headers=auth).json()["rows"]
+        assert [r["client_id"] for r in found] == [person["id"]], q
     assert len(client.get("/api/schedule/grid", params={"year": 2026, "as_of": "2026-06-15", "only_late": True}, headers=auth).json()["rows"]) == 2
     # A year before anything happened: the clients who owe today are listed,
     # every month grey "before" (never red), and no month has anyone owing.
