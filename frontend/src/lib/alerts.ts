@@ -47,5 +47,7 @@ export function monthsLabel(months: number | null): string {
   if (months === null) return "لم يدفع أبداً";
   if (months === 0) return "دفع أقل من القسط";
   if (months === 1) return "لم يدفع هذا الشهر";
-  return `متأخر ${months} أشهر`;
+  if (months === 2) return "متأخر شهرين";
+  // Arabic counts 3–10 with a plural (أشهر), 11 and up with a singular (شهراً).
+  return months <= 10 ? `متأخر ${months} أشهر` : `متأخر ${months} شهراً`;
 }

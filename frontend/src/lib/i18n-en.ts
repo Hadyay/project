@@ -895,6 +895,8 @@ export const EN: Record<string, string> = {
   "قسط عقد متأخر": "Contract installment overdue",
   "لم يدفع أبداً": "Never paid",
   "متأخر ${months} أشهر": "{0} months late",
+  "متأخر ${months} شهراً": "{0} months late",
+  "متأخر شهرين": "2 months late",
   "لا عملاء مطابقون": "No matching clients",
   "كل العملاء دفعوا هذا الشهر": "Every client has paid this month",
   "لا تنبيهات في هذه الدورة.": "No alerts in this cycle.",

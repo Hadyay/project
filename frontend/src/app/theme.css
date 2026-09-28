@@ -578,3 +578,69 @@ ul.how{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap
    side by side only fit on a wide screen. */
 .set-main .grid-2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 @media(max-width:1500px){.set-main .grid-2{grid-template-columns:1fr}}
+
+/* ---------------------------------------------------------------- statement
+   Every client on the start side (its own scroll box, pinned under the
+   topbar), the statement beside it. The statement's table still pins its
+   header to the page, because the page — not a box — scrolls it. */
+.st-layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+.st-list{position:sticky;top:76px;display:flex;flex-direction:column;max-height:calc(100vh - 92px);overflow:hidden}
+.st-tools{padding:12px;border-bottom:1px solid var(--border-soft);display:flex;flex-direction:column;gap:9px}
+.st-search{
+  width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);
+  color:var(--text);font:inherit;font-size:14.5px
+}
+.st-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.st-chips{display:flex;gap:6px;flex-wrap:wrap}
+.st-chip{
+  border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;
+  padding:3px 11px;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center
+}
+.st-chip .mono{font-size:12px;color:var(--muted)}
+.st-chip:hover{border-color:var(--accent)}
+.st-chip.on{background:var(--primary);border-color:var(--primary);color:var(--on-primary);font-weight:600}
+.st-chip.on .mono{color:inherit;opacity:.85}
+.st-chip.red.on{background:var(--danger-strong);border-color:var(--danger-strong)}
+.st-sort{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.st-sort select{
+  border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);
+  font:inherit;font-size:13px;padding:3px 6px
+}
+.st-items{overflow-y:auto;flex:1;min-height:120px}
+.st-none{padding:24px;text-align:center}
+.st-item{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;width:100%;padding:9px 14px;border:0;
+  border-bottom:1px solid var(--border-soft);background:none;color:var(--text);font:inherit;text-align:start;
+  cursor:pointer;border-inline-start:3px solid transparent
+}
+.st-item:hover{background:var(--hover)}
+.st-item.on{background:var(--accent-soft);border-inline-start-color:var(--accent)}
+.st-item.late{border-inline-start-color:var(--danger-strong)}
+.st-item.late.on{border-inline-start-color:var(--accent)}
+.st-nm{font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-bal{font-weight:700;font-size:14px;direction:ltr;text-align:end}
+.st-bal.dr{color:var(--debit)}
+.st-bal.cr{color:var(--credit)}
+.st-meta{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-late{font-size:12px;font-weight:700;color:var(--danger-strong);white-space:nowrap;text-align:end}
+.st-side{font-size:12px;text-align:end}
+.st-main{min-width:0}
+.st-back{display:none;margin-bottom:10px}
+@media(max-width:1000px){
+  .st-layout{grid-template-columns:1fr}
+  .st-list{position:static;max-height:60vh}
+  .st-layout.picked .st-list{display:none}
+  .st-layout.picked .st-back{display:inline-flex}
+}
+@media print{
+  .st-layout{display:block}
+}
+/* Phone topbar: the rate chip and the crumb's second line give way to the
+   buttons, which never shrink. */
+.theme-toggle,.lang-toggle,.bell,.nav-toggle,.avatar{flex-shrink:0}
+@media(max-width:760px){
+  .topbar{gap:8px;padding:0 10px}
+  .topbar .rate,.crumb small{display:none}
+  .crumb{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .theme-toggle,.lang-toggle,.bell,.nav-toggle{width:36px;min-width:36px;height:36px;padding:0}
+}
