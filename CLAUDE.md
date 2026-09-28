@@ -16,11 +16,11 @@ Stack: **FastAPI + PostgreSQL + Next.js**.
 | `backend/app/models/` | ✅ Complete — all 14 tables |
 | `backend/app/schemas/` | ✅ Complete — Pydantic v2 |
 | `backend/app/services/` | ✅ Complete — GL posting, schedules, FX, allocation, audit |
-| `backend/app/api/` | ✅ Complete — 86 routes |
+| `backend/app/api/` | ✅ Complete — 87 routes |
 | `backend/app/jobs/` | ✅ `nightly` — batch rent invoicing + overdue status |
 | `backend/alembic/` | ✅ `0001`…`0009` applied (`initial_schema`, `fix_trial_balance_view`, `org_settings`, `org_logo`, `client_property`, `voucher_ref_no`, `dynamic_roles`, `payment_reminders`, `user_preferences`); `alembic check` is clean |
 | `backend/app/seed/` | ✅ Currencies, chart of accounts, admin user |
-| `backend/tests/` | ✅ 71 tests, all passing (plain `pytest`, no env overrides needed) |
+| `backend/tests/` | ✅ 72 tests, all passing (plain `pytest`, no env overrides needed) |
 | `frontend/` | ✅ Next.js 15 + TS — 16 screens, Arabic / English, typechecks and builds clean |
 | `legacy_data/` (47 CSVs) | ✅ GL imported and reconciled by `app/seed/legacy_import.py` — into `realestate_erp_full`, see below. Property data is not in the export |
 
@@ -690,6 +690,13 @@ the payment grid — so they cannot disagree (on the real ledger, December 2025:
   failure after a line's entry is flushed and checks that nothing of it remains.
 - **`POST /api/alerts/remind/bulk`** (`alerts.manage`) — mark many clients
   reminded in the current cycle; unknown ids come back in `missing`.
+- **`GET /api/receipts/defaults`** (`receipts.create` | `payments.create`) —
+  `{cash_account_id, currency_id}`: the till named by `DEFAULT_CASH_CODE`
+  (null when missing or not a postable till) and the base currency. Forms
+  default to it; before, they took the first till in the list — the starter
+  chart's `1110`, which the office never used (its till is `5300002`).
+- The grid's `q` matches what the clients list does plus `phone2`, and a
+  digits-only query matches phones typed with spaces or dashes.
 - **Preferences** (migration `0009`, `users.preferences` JSONB) — theme
   (`light` default / `dark` / `auto`), `lang`, `simple_mode`, on the user so
   they follow the person to any PC. `GET /api/auth/me` carries them with the
