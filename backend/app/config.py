@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +22,19 @@ class Settings(BaseSettings):
     sales_revenue_code: str = "5110"           # إيرادات المبيعات
     rent_revenue_code: str = "5120"            # إيرادات الإيجارات
     default_cash_code: str = "1110"            # الصندوق
+
+    # --- Database backups (الإعدادات ← النسخ الاحتياطي) ----------------------
+    backup_dir: str = ""                       # default: <project>/db_backup
+    backup_auto: bool = True                   # the API makes one a day while it runs
+    backup_every_hours: int = 24
+    backup_keep_days: int = 30
+    backup_keep_min: int = 7                   # never fewer than this, however old
+    backup_pg_dump: str = ""                   # pg_dump.exe; searched for when empty
+    backup_docker_container: str = "project-db-1"  # the dev PC's Postgres runs in Docker
+
+    @property
+    def backup_path(self) -> Path:
+        return Path(self.backup_dir) if self.backup_dir else Path(__file__).resolve().parents[2] / "db_backup"
 
     @property
     def cors_origins(self) -> list[str]:

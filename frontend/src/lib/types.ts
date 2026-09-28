@@ -702,3 +702,25 @@ export interface BulkRemindResult {
   count: number;
   missing: number[];
 }
+
+/** GET /api/backups — one dated database backup in db_backup\. */
+export interface BackupItem {
+  name: string;
+  /** The server PC's local time, no zone: "2026-09-28T03:30:15". */
+  created_at: string;
+  size_bytes: number;
+  kind: "auto" | "manual";
+}
+
+export interface BackupStatus {
+  folder: string;
+  auto_enabled: boolean;
+  every_hours: number;
+  keep_days: number;
+  keep_min: number;
+  latest_at: string | null;
+  next_due_at: string | null;
+  last_auto_failure: { at: string; message: string } | null;
+  total_bytes: number;
+  items: BackupItem[];
+}

@@ -9,10 +9,12 @@ import { Async, Card, Doc, Empty, ErrorNote, Field, Head, Modal, Pill } from "@/
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
-import { count, initial, isoDate, money, today } from "@/lib/format";
+import { count, dmy, initial, isoDate, money, today } from "@/lib/format";
 import type {
   AlertSettings,
   AlertsSummary,
+  BackupItem,
+  BackupStatus,
   Currency,
   ExchangeRate,
   OrgSettings,
@@ -24,7 +26,7 @@ import type {
 } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
-type Section = "profile" | "password" | "appearance" | "org" | "rates" | "alerts" | "users" | "roles";
+type Section = "profile" | "password" | "appearance" | "org" | "rates" | "alerts" | "users" | "roles" | "backup";
 
 interface SectionDef {
   key: Section;
@@ -58,6 +60,12 @@ const GROUPS: { label: string; items: SectionDef[] }[] = [
     items: [
       { key: "users", label: "المستخدمون", icon: "👥", desc: "من يدخل النظام، ودوره، وكلمة مروره.", permission: "settings.users" },
       { key: "roles", label: "الأدوار والصلاحيات", icon: "⛨", desc: "ما يستطيع كل دور أن يفتح ويفعل.", permission: "settings.users" },
+    ],
+  },
+  {
+    label: "النظام",
+    items: [
+      { key: "backup", label: "النسخ الاحتياطي", icon: "⛁", desc: "نسخة يومية تلقائية من كل بيانات النظام، ونسخة فورية عند الطلب.", permission: "settings.backup" },
     ],
   },
 ];
@@ -126,6 +134,7 @@ function SettingsInner() {
           {active.key === "org" && can("settings.org") ? <OrgPanel /> : null}
           {active.key === "rates" && can("settings.rates") ? <RatesPanel /> : null}
           {active.key === "alerts" && can("settings.alerts") ? <AlertsPanel /> : null}
+          {active.key === "backup" && can("settings.backup") ? <BackupPanel /> : null}
         </section>
       </div>
     </>
@@ -1379,6 +1388,147 @@ function AlertsPanel() {
         />
       </div>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------- النسخ الاحتياطي */
+
+/** "2026-09-28T03:30:15" → "28/09/2026 03:30" — the server PC's clock, as saved. */
+function stamp(value: string | null | undefined): string {
+  return value ? `${dmy(value)} ${value.slice(11, 16)}` : "—";
+}
+
+/** "998 KB" — isolated left-to-right (U+2066…U+2069), or inside an Arabic
+ *  sentence it reads "KB 998". */
+function fileSize(bytes: number): string {
+  const text = bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  return `⁦${text}⁩`;
+}
+
+function BackupPanel() {
+  const toast = useToast();
+  const state = useApi(useCallback(() => api.get<BackupStatus>("/api/backups"), []), []);
+  const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  async function backupNow() {
+    setBusy(true);
+    try {
+      const made = await api.post<BackupItem>("/api/backups");
+      toast.ok(`تم إنشاء نسخة احتياطية — ${fileSize(made.size_bytes)}`);
+      state.reload();
+    } catch (err) {
+      toast.err(err instanceof Error ? err.message : "تعذّر إنشاء النسخة");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function download(item: BackupItem) {
+    setDownloading(item.name);
+    try {
+      await api.download(`/api/backups/${encodeURIComponent(item.name)}`, item.name);
+    } catch (err) {
+      toast.err(err instanceof Error ? err.message : "تعذّر التنزيل");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  return (
+    <Async state={state}>
+      {(s) => (
+        <>
+          {s.last_auto_failure ? (
+            <ErrorNote
+              message={`فشلت آخر نسخة تلقائية (${stamp(s.last_auto_failure.at)}): ${s.last_auto_failure.message}`}
+            />
+          ) : null}
+
+          <div className="grid-2" style={{ alignItems: "start" }}>
+            <Card title="الحالة" padded>
+              <ul className="how">
+                <li>
+                  <b>{s.latest_at ? `آخر نسخة: ${stamp(s.latest_at)}` : "لا توجد نسخة احتياطية بعد"}</b>
+                </li>
+                <li>
+                  {s.auto_enabled
+                    ? `النسخة التلقائية القادمة: ${stamp(s.next_due_at)}`
+                    : "النسخ التلقائي متوقف (BACKUP_AUTO في backend\\.env)"}
+                </li>
+                <li>{`${count(s.items.length)} نسخة محفوظة — ${fileSize(s.total_bytes)}`}</li>
+                <li>
+                  المجلد: <Doc>{s.folder}</Doc>
+                </li>
+              </ul>
+              <button className="btn primary" onClick={backupNow} disabled={busy} style={{ marginTop: 12 }}>
+                {busy ? "جارٍ النسخ…" : "نسخ احتياطي الآن"}
+              </button>
+            </Card>
+
+            <Card title="كيف يعمل النسخ الاحتياطي" padded>
+              <ul className="how">
+                <li>
+                  {`نسخة كاملة تلقائية كل ${s.every_hours} ساعة ما دام النظام يعمل: الدفاتر والعملاء والوصولات والمستخدمون والإعدادات.`}
+                </li>
+                <li>{`تُحذف النسخ الأقدم من ${s.keep_days} يوماً، ويبقى دائماً آخر ${s.keep_min} نسخ مهما قدمت.`}</li>
+                <li>النسخ محفوظة على هذا الجهاز فقط — نزّل واحدة إلى ذاكرة USB من حين لآخر، فعطل القرص يذهب بها معه.</li>
+                <li>تحتوي النسخة على كل البيانات وكلمات المرور المشفّرة — احفظها في مكان آمن.</li>
+                <li>
+                  للاسترجاع: أغلق النظام (stop.bat)، ثم من مجلد النظام شغّل{" "}
+                  <Doc>{"setup.bat -Force -Backup db_backup\\اسم-الملف.sql"}</Doc> — تحلّ النسخة محلّ البيانات الحالية بالكامل.
+                </li>
+              </ul>
+            </Card>
+          </div>
+
+          <Card title="النسخ المحفوظة">
+            {s.items.length === 0 ? (
+              <Empty title="لا توجد نسخ بعد" hint="اضغط «نسخ احتياطي الآن» لأخذ أول نسخة." />
+            ) : (
+              <div className="tbl-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>التاريخ والوقت</th>
+                      <th>النوع</th>
+                      <th>الحجم</th>
+                      <th>الملف</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.items.map((item) => (
+                      <tr key={item.name}>
+                        <td>
+                          <Doc>{stamp(item.created_at)}</Doc>
+                        </td>
+                        <td>
+                          <Pill tone={item.kind === "manual" ? "ok" : "gray"}>
+                            {item.kind === "manual" ? "يدوي" : "تلقائي"}
+                          </Pill>
+                        </td>
+                        <td className="num">
+                          <Doc>{fileSize(item.size_bytes)}</Doc>
+                        </td>
+                        <td translate="no">
+                          <Doc>{item.name}</Doc>
+                        </td>
+                        <td className="num no-print">
+                          <button className="btn sm" onClick={() => download(item)} disabled={downloading !== null}>
+                            {downloading === item.name ? "جارٍ التنزيل…" : "تنزيل"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+    </Async>
   );
 }
 

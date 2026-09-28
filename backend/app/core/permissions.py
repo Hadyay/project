@@ -44,6 +44,7 @@ CATALOG: list[tuple[str, str, list[tuple[str, str]]]] = [
             ("org", "بيانات المنشأة"),
             ("rates", "أسعار الصرف"),
             ("alerts", "إعداد التنبيهات"),
+            ("backup", "النسخ الاحتياطي"),
         ],
     ),
 ]
@@ -71,7 +72,8 @@ DEFAULT_ROLES: list[dict] = [
         "name": "محاسب",
         "description": "كل العمليات والقيود والتقارير، دون إدارة المستخدمين وبيانات المنشأة.",
         "is_system": False,
-        "permissions": sorted(ALL_PERMISSIONS - {"settings.users", "settings.org"}),
+        # Not backups: a backup carries every user's password hash.
+        "permissions": sorted(ALL_PERMISSIONS - {"settings.users", "settings.org", "settings.backup"}),
     },
     {
         "code": "sales",

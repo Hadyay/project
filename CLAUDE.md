@@ -16,11 +16,11 @@ Stack: **FastAPI + PostgreSQL + Next.js**.
 | `backend/app/models/` | ✅ Complete — all 14 tables |
 | `backend/app/schemas/` | ✅ Complete — Pydantic v2 |
 | `backend/app/services/` | ✅ Complete — GL posting, schedules, FX, allocation, audit |
-| `backend/app/api/` | ✅ Complete — 87 routes |
+| `backend/app/api/` | ✅ Complete — 90 routes |
 | `backend/app/jobs/` | ✅ `nightly` — batch rent invoicing + overdue status |
 | `backend/alembic/` | ✅ `0001`…`0009` applied (`initial_schema`, `fix_trial_balance_view`, `org_settings`, `org_logo`, `client_property`, `voucher_ref_no`, `dynamic_roles`, `payment_reminders`, `user_preferences`); `alembic check` is clean |
 | `backend/app/seed/` | ✅ Currencies, chart of accounts, admin user |
-| `backend/tests/` | ✅ 72 tests, all passing (plain `pytest`, no env overrides needed) |
+| `backend/tests/` | ✅ 78 tests, all passing (plain `pytest`, no env overrides needed) |
 | `frontend/` | ✅ Next.js 15 + TS — 16 screens, Arabic / English, typechecks and builds clean |
 | `legacy_data/` (47 CSVs) | ✅ GL imported and reconciled by `app/seed/legacy_import.py` — into `realestate_erp_full`, see below. Property data is not in the export |
 
@@ -103,7 +103,8 @@ the Docker volume — so a plain folder copy moves no ledger, users or letterhea
   through the app's own engine; `npm ci` (falls back to `npm install`);
   **`next build`**; desktop shortcut. Transcript in `logs\setup-*.log`.
   Options: `-PgPort`, `-PgSuperUser`, `-DbPassword`, `-SkipInstall`,
-  `-NoShortcut`, `-Force` (drop and restore), `-Empty`.
+  `-NoShortcut`, `-Force` (save the current data as a dated backup, then drop
+  and restore), `-Backup <file>`, `-Empty`.
 - `start.bat` — serves the **production build** (`next start`, uvicorn without
   `--reload`), both bound to 127.0.0.1, in two minimized windows titled
   "ERP backend" / "ERP frontend" (`cmd /k`, so a crash stays readable). Checks
@@ -703,6 +704,56 @@ the payment grid — so they cannot disagree (on the real ledger, December 2025:
   defaults filled in; `PUT /api/auth/preferences` is a partial update of your
   own, ungated like the password change. Each stored key is validated on its
   own, so a bad value falls back alone and never breaks `/me`.
+
+### Database backups (النسخ الاحتياطي, 2026-09-28)
+
+The office asked for backups that happen without anyone remembering, plus a
+button — kept on this PC only (their choice; the screen says to copy one to a
+USB stick now and then).
+
+- **Files** — `db_backup/erp_backup_<YYYY-MM-DD_HHMMSS>_<auto|manual>.sql`,
+  plain-SQL `pg_dump` (`--no-owner --no-privileges`), the same format
+  `backup-db.ps1` writes, so `setup.bat -Force -Backup db_backup\<file>`
+  restores any of them. `db_backup/realestate_erp_full.sql` (the moving file
+  `package.bat` writes) is a different thing and never touched; the package
+  leaves the dated files out.
+- **Automatic** — `services/backup.py`, started from the `lifespan` in
+  `app/main.py`: a daemon thread waits a minute, then every hour makes an
+  `auto` backup when the newest one is older than `BACKUP_EVERY_HOURS` (24).
+  Data only changes while the app runs, so no Windows scheduled task is
+  needed. `conftest.py` sets `BACKUP_AUTO=false` — otherwise a test run would
+  dump `backend/.env`'s database (the real ledger) a minute in.
+- **Never half a backup** — pg_dump writes `<name>.part`; it becomes a backup
+  only after a clean exit *and* pg_dump's closing line in its last 4 KB. A
+  failed automatic run is kept in `last_auto_failure` and shown in red on the
+  tab until one succeeds.
+- **Which pg_dump** — a local one at least as new as the server (older ones
+  refuse): `BACKUP_PG_DUMP` (setup.bat writes the one beside its psql), PATH,
+  then `C:\Program Files\PostgreSQL\*\bin`. Else `docker exec` into
+  `BACKUP_DOCKER_CONTAINER` — this PC, whose host pg_dump is 15 against the
+  container's 16. Both paths were exercised on 2026-09-28 (the native one
+  against a throwaway PostgreSQL 15).
+- **Pruning** — older than `BACKUP_KEEP_DAYS` (30), but never the newest
+  `BACKUP_KEEP_MIN` (7), so an office closed for six weeks still has a week of
+  history. Only files matching the name pattern are ever deleted.
+- **API** — `GET /api/backups` (status + list), `POST /api/backups` (now;
+  409 while one runs), `GET /api/backups/{name}` (download; the name must
+  match the pattern, so nothing outside the folder is reachable). All need
+  `settings.backup`: a backup carries every password hash, so the default
+  accountant role does not get it, and existing databases give it to the
+  system role only. Making and downloading are written to `audit_log`
+  (`table_name='backups'`).
+- **Screen** — الإعدادات ← النظام ← النسخ الاحتياطي: last / next backup,
+  count and size, folder, "نسخ احتياطي الآن", the list with download
+  (`api.download`: fetch with the token, then a blob link — a plain `<a>`
+  cannot send the header), and how to restore.
+- **Restoring replaces the data, so setup saves it first.** `setup.bat -Force`
+  now dumps the database it is about to drop into `db_backup/` as a dated
+  `manual` backup, and stops before dropping anything if that dump fails
+  (tested both ways). A restore of the wrong file can be undone the same way.
+- Verified on the real ledger: the automatic backup restored into a throwaway
+  database with identical receipts, clients, entries, trial balance
+  ($20,142,142.00), users, roles, migration and letterhead.
 
 ### Settings, users and the letterhead
 

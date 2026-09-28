@@ -100,6 +100,31 @@ export const api = {
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 
+  /** Save a file the API serves behind the token (a backup). A plain link
+   *  cannot send the Authorization header, so fetch it and hand the browser
+   *  the bytes. */
+  async download(path: string, filename: string): Promise<void> {
+    const token = getToken();
+    let response: Response;
+    try {
+      response = await fetch(`${BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    } catch {
+      throw new ApiError(0, "تعذّر الاتصال بالخادم");
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new ApiError(response.status, readDetail(body, `خطأ ${response.status}`));
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
+
   /** Login is the one endpoint that takes form-encoded data (OAuth2 password flow). */
   async login(username: string, password: string): Promise<string> {
     const body = new URLSearchParams({ username, password });

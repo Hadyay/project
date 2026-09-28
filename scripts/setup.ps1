@@ -132,6 +132,34 @@ if ((-not $dbExists -or $Force) -and -not (Test-Path $Backup) -and -not $Empty) 
         "Make the package with package.bat on the old PC (it includes the data), unzip it here and run setup.bat again. Nothing was changed."
 }
 
+if ($dbExists -and $Force) {
+    # -Force replaces the data that is there. Save it first, as a dated backup
+    # the app lists (Settings > Backups), so restoring the wrong file can be
+    # undone. If it cannot be saved, stop before anything is dropped.
+    Step "Saving the current data before replacing it"
+    $pgDump = Join-Path (Split-Path $psql) "pg_dump.exe"
+    $keepName = "erp_backup_{0:yyyy-MM-dd_HHmmss}_manual.sql" -f (Get-Date)
+    # Dumped under ProgramData first, like the restore file: the project path
+    # may carry an Arabic user name that pg_dump cannot open.
+    $keepTmp = Join-Path $env:ProgramData "RealEstateERP\$keepName"
+    New-Item -ItemType Directory -Force (Split-Path $keepTmp) | Out-Null
+    $superPassword = $env:PGPASSWORD
+    $env:PGPASSWORD = $DbPassword
+    & $pgDump -h $PgHost -p $PgPort -U $DbUser -d $DbName --no-owner --no-privileges --encoding=UTF8 --quote-all-identifiers -f $keepTmp
+    $code = $LASTEXITCODE
+    $env:PGPASSWORD = $superPassword
+    $complete = (Test-Path $keepTmp) -and (Select-String -Path $keepTmp -Pattern "PostgreSQL database dump complete" -SimpleMatch -Quiet)
+    if ($code -ne 0 -or -not $complete) {
+        Remove-Item $keepTmp -ErrorAction SilentlyContinue
+        Fail "Could not save the current data before replacing it - nothing was changed." `
+            "Check the pg_dump message above (pg_dump must be as new as the PostgreSQL server)."
+    }
+    $keepDir = Join-Path $Root "db_backup"
+    New-Item -ItemType Directory -Force $keepDir | Out-Null
+    Move-Item $keepTmp (Join-Path $keepDir $keepName) -Force
+    Ok "Current data saved: db_backup\$keepName"
+}
+
 $restore = $true
 if ($dbExists) {
     if ($Force) {
@@ -221,6 +249,12 @@ if ($legacyChart) {
         "DEFAULT_CASH_CODE=5300002",
         "RENT_REVENUE_CODE=5120"
     )
+}
+# The daily backup (Settings > Backups) runs pg_dump from the API; point it at
+# the one beside this psql. The API also searches for one if this is missing.
+$pgDumpExe = Join-Path (Split-Path $psql) "pg_dump.exe"
+if (Test-Path $pgDumpExe) {
+    $lines += @("", "# Daily database backups into db_backup\ (Settings > Backups).", "BACKUP_PG_DUMP=$pgDumpExe")
 }
 Write-Utf8File $envFile $lines
 Write-Utf8File (Join-Path $Frontend ".env.local") @("NEXT_PUBLIC_API_URL=http://localhost:$BackendPort")

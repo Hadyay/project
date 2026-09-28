@@ -10,6 +10,9 @@ os.environ.update(
     SALES_REVENUE_CODE="5110",
     RENT_REVENUE_CODE="5120",
     DEFAULT_CASH_CODE="1110",
+    # No automatic backup thread in tests: it would dump backend/.env's
+    # database (the real ledger) a minute into the run.
+    BACKUP_AUTO="false",
 )
 
 import pytest  # noqa: E402
