@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.api.common import Paging, get_or_404, paginate
+from app.config import settings
 from app.core.deps import CurrentUser, DbSession, get_current_user, require_perm
 from app.models import (
     Account,
@@ -21,6 +22,7 @@ from app.schemas.cash import (
     BulkReceiptCreated,
     BulkReceiptFailure,
     BulkReceiptResult,
+    CashDefaults,
     PaymentCreate,
     PaymentDetail,
     PaymentOut,
@@ -107,6 +109,18 @@ def list_receipts(
         for r in rows
     ]
     return Page(items=items, total=total, limit=paging.limit, offset=paging.offset)
+
+
+@receipts_router.get(
+    "/defaults", response_model=CashDefaults, dependencies=[Depends(require_perm("receipts.create", "payments.create"))]
+)
+def cash_defaults(db: DbSession) -> CashDefaults:
+    """The office's till (DEFAULT_CASH_CODE) and the base currency, so a new
+    receipt or payment starts where the office actually keeps its cash — not
+    on whichever till happens to sort first."""
+    till = db.scalars(select(Account).where(Account.code == settings.default_cash_code)).one_or_none()
+    usable = till is not None and till.is_cash_bank and till.is_postable
+    return CashDefaults(cash_account_id=till.id if usable else None, currency_id=fx.base_currency(db).id)
 
 
 @receipts_router.get("/{receipt_id}", response_model=ReceiptDetail, dependencies=[Depends(require_perm("receipts.view"))])

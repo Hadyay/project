@@ -154,3 +154,26 @@ def test_a_line_failing_halfway_leaves_nothing_behind(
     assert db.scalar(select(func.count()).select_from(JournalEntry)) == entries_before + 1
     assert db.scalar(select(func.count()).select_from(Receipt)) == 1
     assert Decimal(client.get(f"/api/clients/{a['id']}/balance", headers=auth).json()["balance"]) == Decimal("11000.00")
+
+
+def test_cash_defaults(client: TestClient, auth, usd_id: int, cash_account_id: int, monkeypatch) -> None:
+    from app.config import settings
+
+    assert client.get("/api/receipts/defaults", headers=auth).json() == {"cash_account_id": cash_account_id, "currency_id": usd_id}
+    # A code that is missing, or not a till, gives null rather than a wrong account.
+    monkeypatch.setattr(settings, "default_cash_code", "999999")
+    assert client.get("/api/receipts/defaults", headers=auth).json()["cash_account_id"] is None
+    monkeypatch.setattr(settings, "default_cash_code", "5110")
+    assert client.get("/api/receipts/defaults", headers=auth).json()["cash_account_id"] is None
+
+    roles = {r["code"]: r["id"] for r in client.get("/api/roles", headers=auth).json()}
+    payer = client.post("/api/roles", headers=auth, json={"code": "payer", "name": "صرف فقط", "permissions": ["payments.view", "payments.create"]}).json()
+    for username, role_id in (("viewer1", roles["viewer"]), ("payer1", payer["id"])):
+        client.post("/api/users", headers=auth, json={"username": username, "password": "secret123", "role_id": role_id})
+
+    def login(user: str) -> dict:
+        token = client.post("/api/auth/login", data={"username": user, "password": "secret123"}).json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/api/receipts/defaults", headers=login("viewer1")).status_code == 403
+    assert client.get("/api/receipts/defaults", headers=login("payer1")).status_code == 200

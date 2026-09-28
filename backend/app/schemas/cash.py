@@ -51,6 +51,13 @@ class ReceiptDetail(ReceiptOut):
     cash_account_name: str | None = None
 
 
+class CashDefaults(BaseModel):
+    """What a new receipt or payment form starts with."""
+
+    cash_account_id: int | None  # null when the configured till is missing or not a postable till
+    currency_id: int  # the base currency
+
+
 class BulkReceiptLine(BaseModel):
     client_id: int
     amount: Decimal = Field(gt=0)
