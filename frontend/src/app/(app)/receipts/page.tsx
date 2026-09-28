@@ -23,6 +23,7 @@ import type {
   PaymentMethod,
   ReceiptDetail,
 } from "@/lib/types";
+import { useReceiptDefaults } from "@/lib/receiptDefaults";
 import { useApi } from "@/lib/useApi";
 
 export default function ReceiptsPage() {
@@ -328,9 +329,11 @@ function ReceiptForm({
     [form.client_id],
   );
 
+  const defaults = useReceiptDefaults();
   const baseCurrency = currencies.data?.find((c) => c.is_base);
   const accounts = cashAccounts.data?.items ?? [];
-  const defaultCash = accounts[0]?.id;
+  // The configured till (DEFAULT_CASH_CODE), not the first in the list.
+  const defaultCash = accounts.find((a) => a.id === defaults?.cash_account_id)?.id ?? accounts[0]?.id;
 
   async function save() {
     setBusy(true);
@@ -405,7 +408,10 @@ function ReceiptForm({
           </select>
         </Field>
         <Field label="الصندوق / المصرف">
-          <select value={form.cash_account_id} onChange={(e) => setForm({ ...form, cash_account_id: e.target.value })}>
+          <select
+            value={form.cash_account_id || String(defaultCash ?? "")}
+            onChange={(e) => setForm({ ...form, cash_account_id: e.target.value })}
+          >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name_ar}</option>
             ))}

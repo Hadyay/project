@@ -646,3 +646,13 @@ table.rs-table tfoot td {
 .print-head {
   display: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Several vouchers on one page (/receipts/print?ids=): apart on screen, one
+   per sheet of paper. */
+.sheet-page + .sheet-page { margin-top: 28px; }
+@media print {
+  .sheet-page { break-after: page; }
+  .sheet-page:last-child { break-after: auto; }
+  .sheet-page + .sheet-page { margin-top: 0; }
+}

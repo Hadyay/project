@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
+import { BulkReceipts, type BulkClient } from "@/components/BulkReceipts";
 import { ExportButtons, PrintFooter, ResultCount } from "@/components/Filters";
 import { SearchPanel, fold, type SearchSpec, type SearchValues } from "@/components/SearchPanel";
 import { useToast } from "@/components/Toast";
@@ -11,7 +12,7 @@ import { monthsLabel } from "@/lib/alerts";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { count, dmy, money, num } from "@/lib/format";
-import type { AlertsReport, LateClient } from "@/lib/types";
+import type { AlertsReport, BulkRemindResult, LateClient } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
 const REASON_AR: Record<LateClient["reason"], string> = {
@@ -27,6 +28,8 @@ export default function AlertsPage() {
   const toast = useToast();
   const state = useApi(useCallback(() => api.get<AlertsReport>("/api/alerts"), []), []);
   const [marking, setMarking] = useState<LateClient | null>(null);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [bulk, setBulk] = useState<BulkClient[] | null>(null);
 
   const [q, setQ] = useState("");
   const [reminded, setReminded] = useState("");
@@ -83,6 +86,38 @@ export default function AlertsPage() {
     for (const [key, value] of Object.entries(patch)) setters[key]?.(value);
   }
 
+  const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.client_id));
+  function toggle(id: number) {
+    setPicked((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  const toBulk = (r: LateClient): BulkClient => ({
+    client_id: r.client_id,
+    name: r.name,
+    code: r.code,
+    balance: r.balance,
+    monthly_installment: r.monthly_installment,
+  });
+  /** The ticked clients, or every one on screen when none is ticked. */
+  function openBulk() {
+    setBulk((picked.size ? rows.filter((r) => picked.has(r.client_id)) : rows).map(toBulk));
+  }
+
+  async function remindPicked() {
+    try {
+      const result = await api.post<BulkRemindResult>("/api/alerts/remind/bulk", { client_ids: [...picked] });
+      toast.ok(`سُجّل التذكير لـ ${count(result.count)} عميل — دورة ${result.period}`);
+      setPicked(new Set());
+      state.reload();
+    } catch (err) {
+      toast.err(err instanceof Error ? err.message : "تعذّر التنفيذ");
+    }
+  }
+
   async function unmark(row: LateClient) {
     try {
       await api.del(`/api/alerts/clients/${row.client_id}/remind`);
@@ -103,11 +138,18 @@ export default function AlertsPage() {
             : "العملاء الذين لم يدفعوا دفعة الشهر"
         }
         actions={
-          can("settings.alerts") ? (
-            <Link className="btn" href="/settings?tab=alerts">
-              ⚙ إعداد التنبيه
-            </Link>
-          ) : null
+          <>
+            {can("settings.alerts") ? (
+              <Link className="btn" href="/settings?tab=alerts">
+                ⚙ إعداد التنبيه
+              </Link>
+            ) : null}
+            {can("receipts.create") && rows.length ? (
+              <button className="btn primary" onClick={openBulk}>
+                {picked.size ? `تسجيل دفعات المحدّدين (${count(picked.size)})` : "تسجيل دفعات الشهر"}
+              </button>
+            ) : null}
+          </>
         }
       />
 
@@ -169,6 +211,25 @@ export default function AlertsPage() {
                 }
               />
 
+              {picked.size ? (
+                <div className="pick-bar no-print">
+                  <b>{`${count(picked.size)} محدّد`}</b>
+                  {can("receipts.create") ? (
+                    <button className="btn sm primary" onClick={openBulk}>
+                      تسجيل دفعاتهم
+                    </button>
+                  ) : null}
+                  {can("alerts.manage") ? (
+                    <button className="btn sm" onClick={remindPicked}>
+                      تم التذكير للمحدّدين
+                    </button>
+                  ) : null}
+                  <button className="btn sm" onClick={() => setPicked(new Set())}>
+                    إلغاء التحديد
+                  </button>
+                </div>
+              ) : null}
+
               <Card>
                 {rows.length === 0 ? (
                   <Empty
@@ -180,6 +241,14 @@ export default function AlertsPage() {
                     <table>
                       <thead>
                         <tr>
+                          <th className="gt-pick no-print">
+                            <input
+                              type="checkbox"
+                              checked={allPicked}
+                              onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.client_id)))}
+                              aria-label="تحديد الكل"
+                            />
+                          </th>
                           <th>العميل</th>
                           <th>المشروع · البلوك</th>
                           <th className="num">الرصيد</th>
@@ -193,6 +262,14 @@ export default function AlertsPage() {
                       <tbody>
                         {rows.map((row) => (
                           <tr key={row.client_id} className="late">
+                            <td className="gt-pick no-print">
+                              <input
+                                type="checkbox"
+                                checked={picked.has(row.client_id)}
+                                onChange={() => toggle(row.client_id)}
+                                aria-label={`تحديد ${row.name}`}
+                              />
+                            </td>
                             <td>
                               <div className="nm" translate="no">
                                 <Link href={`/clients/${row.client_id}`}>{row.name}</Link>
@@ -277,6 +354,17 @@ export default function AlertsPage() {
           )
         }
       </Async>
+
+      {bulk ? (
+        <BulkReceipts
+          clients={bulk}
+          onClose={() => setBulk(null)}
+          onDone={() => {
+            setPicked(new Set());
+            state.reload();
+          }}
+        />
+      ) : null}
 
       {marking ? (
         <RemindForm

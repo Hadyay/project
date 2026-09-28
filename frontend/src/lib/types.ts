@@ -674,3 +674,31 @@ export interface PaymentGrid {
   rows: GridRow[];
   totals: GridTotal[];
 }
+
+/* ---------------------------------------------------------- bulk */
+
+/** One line of POST /api/receipts/bulk. */
+export interface BulkReceiptLine {
+  client_id: number;
+  amount: string;
+  contract_id?: number | null;
+  ref_no?: string | null;
+  cheque_no?: string | null;
+  notes?: string | null;
+}
+
+/** POST /api/receipts/bulk — 200 even when some lines fail; `line` is the
+ *  index into the request's lines. */
+export interface BulkReceiptResult {
+  created: { line: number; client_id: number; receipt_id: number; receipt_no: string; amount: Money }[];
+  failures: { line: number; client_id: number; detail: string }[];
+  count: number;
+  total_amount: Money;
+}
+
+/** POST /api/alerts/remind/bulk. */
+export interface BulkRemindResult {
+  period: string;
+  count: number;
+  missing: number[];
+}

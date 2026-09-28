@@ -17,13 +17,25 @@ import { useApi } from "@/lib/useApi";
  *  Receipts and payments print the same sheet with only the title and the
  *  party line swapped, so they stay in step: one layout to keep aligned with
  *  the office's paper, not two. */
-export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number }) {
+export function Voucher({
+  kind,
+  id,
+  bare = false,
+}: {
+  kind: "receipt" | "payment";
+  id: number;
+  /** Without the back / print toolbar: one of several on a print-all page. */
+  bare?: boolean;
+}) {
   const isReceipt = kind === "receipt";
   const path = isReceipt ? "receipts" : "payments";
   const org = useOrg();
 
   const state = useApi(
-    useCallback(() => api.get<ReceiptDetail | PaymentDetail>(`/api/${path}/${id}`), [path, id]),
+    useCallback(
+      () => api.get<ReceiptDetail | PaymentDetail>(`/api/${path}/${id}`),
+      [path, id],
+    ),
     [path, id],
   );
 
@@ -40,25 +52,30 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
         const docDate = receipt ? receipt.receipt_date : payment!.payment_date;
         const party = receipt ? receipt.client_name : payment!.beneficiary_name;
         const currency = doc.currency_name ?? doc.currency_code ?? "";
-        const partyAccount = receipt ? (receipt.client_code ?? receipt.client_id) : payment!.beneficiary_account_id;
-        const rate = Number(doc.exchange_rate) !== 1 ? money(doc.exchange_rate, 6) : null;
+        const partyAccount = receipt
+          ? (receipt.client_code ?? receipt.client_id)
+          : payment!.beneficiary_account_id;
+        const rate =
+          Number(doc.exchange_rate) !== 1 ? money(doc.exchange_rate, 6) : null;
 
         return (
           <>
-            <div className="filters no-print">
-              <Link className="btn" href={`/${path}`}>
-                ← رجوع
-              </Link>
-              <div className="spacer" style={{ flex: 1 }} />
-              {receipt ? (
-                <Link className="btn" href={`/clients/${receipt.client_id}`}>
-                  كشف حساب العميل
+            {bare ? null : (
+              <div className="filters no-print">
+                <Link className="btn" href={`/${path}`}>
+                  ← رجوع
                 </Link>
-              ) : null}
-              <button className="btn primary" onClick={printPage}>
-                ⎙ طباعة / حفظ PDF
-              </button>
-            </div>
+                <div className="spacer" style={{ flex: 1 }} />
+                {receipt ? (
+                  <Link className="btn" href={`/clients/${receipt.client_id}`}>
+                    كشف حساب العميل
+                  </Link>
+                ) : null}
+                <button className="btn primary" onClick={printPage}>
+                  ⎙ طباعة / حفظ PDF
+                </button>
+              </div>
+            )}
 
             {/* Black on white by design, on screen as on paper: a voucher is
                 photocopied, faxed and filed, and colour is the first thing
@@ -72,17 +89,27 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
                   ) : null}
                   <div>
                     <div className="sheet-org-name">{org.name}</div>
-                    {org.subtitle ? <div className="org">{org.subtitle}</div> : null}
-                    {org.address ? <div className="org">{org.address}</div> : null}
-                    {org.phone || org.email ? (
-                      <div className="org">{[org.phone, org.email].filter(Boolean).join(" · ")}</div>
+                    {org.subtitle ? (
+                      <div className="org">{org.subtitle}</div>
                     ) : null}
-                    {org.tax_no ? <div className="org">الرقم الضريبي: {org.tax_no}</div> : null}
+                    {org.address ? (
+                      <div className="org">{org.address}</div>
+                    ) : null}
+                    {org.phone || org.email ? (
+                      <div className="org">
+                        {[org.phone, org.email].filter(Boolean).join(" · ")}
+                      </div>
+                    ) : null}
+                    {org.tax_no ? (
+                      <div className="org">الرقم الضريبي: {org.tax_no}</div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="sheet-title">
                   <h2>{isReceipt ? "سند قبض" : "سند صرف"}</h2>
-                  <span>{isReceipt ? "RECEIPT VOUCHER" : "PAYMENT VOUCHER"}</span>
+                  <span>
+                    {isReceipt ? "RECEIPT VOUCHER" : "PAYMENT VOUCHER"}
+                  </span>
                 </div>
               </div>
 
@@ -104,7 +131,9 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
 
               <div className="sheet-lines">
                 <div className="sheet-line">
-                  <span>{isReceipt ? "استلمنا من السيد/ة" : "دفعنا إلى السيد/ة"}</span>
+                  <span>
+                    {isReceipt ? "استلمنا من السيد/ة" : "دفعنا إلى السيد/ة"}
+                  </span>
                   <b>{party ?? "—"}</b>
                 </div>
                 <div className="sheet-line">
@@ -140,7 +169,9 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
                     <td>{currency || "—"}</td>
                     <th>{receipt ? "العقد" : "سعر الصرف"}</th>
                     <td>
-                      <span className="mono">{receipt ? (receipt.contract_no ?? "—") : (rate ?? "—")}</span>
+                      <span className="mono">
+                        {receipt ? (receipt.contract_no ?? "—") : (rate ?? "—")}
+                      </span>
                     </td>
                   </tr>
                   {receipt && rate ? (
@@ -160,12 +191,18 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
                 <div>{isReceipt ? "توقيع الدافع" : "توقيع المستلم"}</div>
               </div>
 
-              {org.footer_note ? <div className="sheet-note">{org.footer_note}</div> : null}
+              {org.footer_note ? (
+                <div className="sheet-note">{org.footer_note}</div>
+              ) : null}
 
               <div className="sheet-foot">
                 <span>
                   القيد:{" "}
-                  <span className="mono">{doc.journal_entry_id ? `#${doc.journal_entry_id}` : "غير مُقيَّد"}</span>
+                  <span className="mono">
+                    {doc.journal_entry_id
+                      ? `#${doc.journal_entry_id}`
+                      : "غير مُقيَّد"}
+                  </span>
                 </span>
                 {doc.ref_no ? (
                   <span>
@@ -177,7 +214,10 @@ export function Voucher({ kind, id }: { kind: "receipt" | "payment"; id: number 
                 </span>
                 <div className="spacer" style={{ flex: 1 }} />
                 <span>
-                  طُبع: <span className="mono">{new Date().toISOString().slice(0, 10)}</span>
+                  طُبع:{" "}
+                  <span className="mono">
+                    {new Date().toISOString().slice(0, 10)}
+                  </span>
                 </span>
               </div>
             </div>

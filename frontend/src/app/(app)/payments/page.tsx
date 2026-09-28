@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { METHOD_AR, isoDate, today } from "@/lib/format";
 import type { Account, Currency, Page, PaymentDetail, PaymentMethod } from "@/lib/types";
+import { useReceiptDefaults } from "@/lib/receiptDefaults";
 import { useApi } from "@/lib/useApi";
 
 export default function PaymentsPage() {
@@ -266,7 +267,9 @@ function PaymentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
 
   const baseCurrency = currencies.data?.find((c) => c.is_base);
   const cash = cashAccounts.data?.items ?? [];
-  const defaultCash = cash[0]?.id;
+  const defaults = useReceiptDefaults();
+  // The configured till (DEFAULT_CASH_CODE), not the first in the list.
+  const defaultCash = cash.find((a) => a.id === defaults?.cash_account_id)?.id ?? cash[0]?.id;
   const beneficiaries = (allAccounts.data?.items ?? []).filter((a) => !a.is_cash_bank);
 
   async function save() {
@@ -321,7 +324,7 @@ function PaymentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
                  onChange={(e) => setForm({ ...form, payment_date: e.target.value })} />
         </Field>
         <Field label="من حساب">
-          <select value={form.cash_account_id}
+          <select value={form.cash_account_id || String(defaultCash ?? "")}
                   onChange={(e) => setForm({ ...form, cash_account_id: e.target.value })}>
             {cash.map((a) => (
               <option key={a.id} value={a.id}>{a.name_ar}</option>

@@ -733,3 +733,65 @@ a.cs.bad:hover{border-color:var(--danger-strong)}
   .late-row{flex-wrap:wrap}
   .late-act{width:100%;justify-content:flex-end}
 }
+
+/* ---------------------------------------------------------------- payment grid
+   A client per row, a month per column. Cells are small and read by colour
+   AND by mark (amount, ✗, ·), so the sheet still reads in black and white. */
+.grid-table{font-size:13.5px}
+.grid-table thead th.gt-m{text-align:center;padding:8px 4px;min-width:52px}
+.grid-table .gt-client{min-width:200px}
+.gt-pick{width:34px;text-align:center;padding:6px !important}
+.gt-pick input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+.grid-table tbody td{padding:7px 8px}
+.grid-table tbody tr.picked td{background:var(--accent-soft)}
+td.gc{
+  text-align:center;padding:6px 3px !important;font-family:var(--f-mono);font-variant-numeric:tabular-nums;
+  font-size:12.5px;font-weight:600;white-space:nowrap
+}
+td.gc.click{cursor:pointer}
+td.gc.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.gc.paid{background:var(--success-soft) !important;color:var(--success)}
+.gc.short{background:var(--warning-soft) !important;color:var(--warning)}
+.gc.unpaid{background:var(--danger-soft) !important;color:var(--danger-strong);font-weight:700}
+.gc.settled{color:var(--muted)}
+.gc.before{background:repeating-linear-gradient(135deg,transparent 0 5px,var(--border-soft) 5px 6px) !important}
+.gc.future{background:transparent}
+.grid-table tfoot td{text-align:center;font-size:12.5px;padding:7px 3px}
+.grid-table tfoot td:nth-child(2){text-align:start;padding-inline-start:12px}
+.gt-rate.good{color:var(--success)}
+.gt-rate.mid{color:var(--warning)}
+.gt-rate.low{color:var(--danger-strong)}
+.grid-legend{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:10px 16px;border-top:1px solid var(--border-soft);font-size:13px}
+.grid-legend span{display:inline-flex;align-items:center;gap:6px}
+.grid-legend i.gc{display:inline-block;width:18px;height:14px;border-radius:3px;border:1px solid var(--border)}
+.year-nav b{min-width:56px;font-size:16px}
+.pick-bar{
+  position:sticky;top:68px;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;
+  margin-bottom:10px;background:var(--surface);border:1.5px solid var(--accent-line);border-radius:10px;box-shadow:var(--shadow-lg)
+}
+.pick-bar b{margin-inline-end:auto}
+
+/* ---------------------------------------------------------------- bulk receipts */
+.modal.wide:has(.bulk){max-width:min(1140px,96vw)}
+.bulk-head{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media(max-width:760px){.bulk-head{grid-template-columns:1fr 1fr}}
+.bulk-table td{padding:6px 8px;vertical-align:middle}
+.bulk-in{
+  width:100%;min-width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--text);font:inherit;font-size:14px
+}
+.bulk-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.bulk-table td:nth-child(4) .bulk-in{min-width:110px;font-weight:700}
+.bulk-err{color:var(--danger-strong);font-size:12.5px;font-weight:600;margin-top:2px}
+.bulk-add{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:12px;align-items:end;margin-top:12px}
+.bulk-add .field input{
+  width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit
+}
+.bulk-add p{margin:0 0 8px}
+.bulk-total{margin-inline-start:auto;align-self:center;font-size:14px}
+.bulk-total b{font-size:16px}
+@media print{
+  .gc.paid,.gc.short,.gc.unpaid{background:none !important;color:#000}
+  .gc.before{background:none !important}
+  .pick-bar{display:none}
+}
