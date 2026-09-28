@@ -8,7 +8,7 @@ Stack: **FastAPI + PostgreSQL + Next.js**.
 
 ---
 
-## Current state (2026-09-27)
+## Current state (2026-09-28)
 
 | Area | Status |
 | --- | --- |
@@ -16,11 +16,11 @@ Stack: **FastAPI + PostgreSQL + Next.js**.
 | `backend/app/models/` | ✅ Complete — all 14 tables |
 | `backend/app/schemas/` | ✅ Complete — Pydantic v2 |
 | `backend/app/services/` | ✅ Complete — GL posting, schedules, FX, allocation, audit |
-| `backend/app/api/` | ✅ Complete — 63 routes |
+| `backend/app/api/` | ✅ Complete — 86 routes |
 | `backend/app/jobs/` | ✅ `nightly` — batch rent invoicing + overdue status |
-| `backend/alembic/` | ✅ `0001`…`0008` applied (`initial_schema`, `fix_trial_balance_view`, `org_settings`, `org_logo`, `client_property`, `voucher_ref_no`, `dynamic_roles`, `payment_reminders`); `alembic check` is clean |
+| `backend/alembic/` | ✅ `0001`…`0009` applied (`initial_schema`, `fix_trial_balance_view`, `org_settings`, `org_logo`, `client_property`, `voucher_ref_no`, `dynamic_roles`, `payment_reminders`, `user_preferences`); `alembic check` is clean |
 | `backend/app/seed/` | ✅ Currencies, chart of accounts, admin user |
-| `backend/tests/` | ✅ 59 tests, all passing (plain `pytest`, no env overrides needed) |
+| `backend/tests/` | ✅ 71 tests, all passing (plain `pytest`, no env overrides needed) |
 | `frontend/` | ✅ Next.js 15 + TS — 16 screens, Arabic / English, typechecks and builds clean |
 | `legacy_data/` (47 CSVs) | ✅ GL imported and reconciled by `app/seed/legacy_import.py` — into `realestate_erp_full`, see below. Property data is not in the export |
 
@@ -636,10 +636,14 @@ by an alarm window. Recording a receipt clears it; nothing is scheduled.
   never stored per month. A *cycle* opens on the alert day and runs to the next
   month's alert day; before the alert day the previous month's cycle is still in
   force, so a client who missed last month does not vanish on the 1st.
-- **Late** = receivable balance above `alert_settings.min_balance`, and in the
-  cycle's month: paid nothing — or less than `clients.monthly_installment` when
-  set — or an active contract installment is past due and unpaid. Sorted by
-  months since the last receipt (never-paid first).
+- **Late** = the client already owed (above `alert_settings.min_balance`) on
+  the **first day of the cycle's month**, still owes, and in that month paid
+  nothing — or less than `clients.monthly_installment` when set — or an active
+  contract installment is past due and unpaid. Owed-at-month-start is what keeps
+  a client who bought on the 15th from being late the same month. The rule lives
+  in `services/collection.py` and is shared with the dashboard rate and جدول
+  الدفعات — see the next section. Sorted by months since the last receipt
+  (never-paid first).
 - **Storage** (migration `0008`): `alert_settings` (one row: enabled,
   alert_day, min_balance), `client_reminders` (the office's "تم التذكير" mark,
   one per client per month, with a note), `clients.monthly_installment`.
@@ -654,6 +658,44 @@ by an alarm window. Recording a receipt clears it; nothing is scheduled.
 - `tests/test_reminders.py` pins the cycle boundaries, receipt clearing /
   voiding, short payments, minimum balance, switch-off, reminder marks and the
   permissions.
+
+### Collection rate, جدول الدفعات and bulk entry (2026-09-28)
+
+One rule answers "who paid this month", in `app/services/collection.py`, and
+three screens read it — the alerts, the dashboard's paid-this-month ring and
+the payment grid — so they cannot disagree (on the real ledger, December 2025:
+40 of 126 owing clients paid, 31.75 %, the same 126 − 40 the alerts list).
+
+- **`Snapshot(db, as_of)`** loads clients, per-day ledger nets and receipts in
+  three queries (live entries only); `month(client, window)` gives
+  `owed_at_start`, `paid`, and a status: `paid` / `short` (below the monthly
+  installment) / `unpaid` / `settled` (owed nothing, or cleared it) / `before`
+  (no charge yet) / `future`. Late = `short` or `unpaid`.
+- **`GET /api/reports/collection?months=6&as_of=`** (`dashboard.view` |
+  `reports.view`) — per month: owing at start, paid, late, rate, amount
+  collected, expected (sum of installments). In the running month, clients with
+  an overdue contract installment count as late too, as in the alerts.
+- **`GET /api/schedule/grid?year=&as_of=&q=&only_late=&project=`**
+  (`schedule.view` | `receipts.view`) — a client × 12 months grid of those
+  statuses and amounts, totals per month, the project list for the filter.
+  `year` defaults to `as_of.year`; a past `as_of` (2025-12-31) shows a finished
+  year with no `future` cells. 154 rows in ~0.1 s. The imported history stops in
+  December 2025, so the current month reads 0 % until receipts are entered again.
+- **`POST /api/receipts/bulk`** (`receipts.create`) — one date, till, currency
+  and method for many `{client_id, amount, contract_id?, ref_no?, cheque_no?,
+  notes?}`. What the lines share is checked first (not a till, unknown currency,
+  no FX rate → one 400, nothing written); each line then runs the single-receipt
+  path — GL, schedule allocation, audit — in its own savepoint, so a bad line is
+  reported in `failures` by index and the rest commit. `test_bulk.py` forces a
+  failure after a line's entry is flushed and checks that nothing of it remains.
+- **`POST /api/alerts/remind/bulk`** (`alerts.manage`) — mark many clients
+  reminded in the current cycle; unknown ids come back in `missing`.
+- **Preferences** (migration `0009`, `users.preferences` JSONB) — theme
+  (`light` default / `dark` / `auto`), `lang`, `simple_mode`, on the user so
+  they follow the person to any PC. `GET /api/auth/me` carries them with the
+  defaults filled in; `PUT /api/auth/preferences` is a partial update of your
+  own, ungated like the password change. Each stored key is validated on its
+  own, so a bad value falls back alone and never breaks `/me`.
 
 ### Settings, users and the letterhead
 
