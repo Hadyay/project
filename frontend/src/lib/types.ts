@@ -602,3 +602,75 @@ export interface OrgSettings {
   logo: string | null;
   updated_at: string;
 }
+
+/* ---------------------------------------------------------- collection */
+
+/** One month of GET /api/reports/collection. "Owing" = owed at the start of
+ *  the month (balance on its first day above the alert minimum); late =
+ *  owing − paid. rate is 0–100, "0.00" when nobody owed. */
+export interface CollectionMonth {
+  period: string;
+  owing_at_start: number;
+  paid: number;
+  late: number;
+  rate: Money;
+  /** Receipts dated in the month, all clients. */
+  amount_collected: Money;
+  /** Sum of the owing clients' monthly installments; null when none has one. */
+  expected: Money | null;
+}
+
+export interface CollectionReport {
+  as_of: string;
+  current: CollectionMonth;
+  /** Oldest → newest; the last one is `current`. */
+  months: CollectionMonth[];
+}
+
+/* ---------------------------------------------------------- payment grid */
+
+/** paid · short (below the installment) · unpaid (owed, paid nothing — red) ·
+ *  settled (owed nothing) · before (before the first charge) · future. */
+export type GridStatus = "paid" | "short" | "unpaid" | "settled" | "before" | "future";
+
+export interface GridCell {
+  period: string;
+  paid: Money;
+  receipts: number;
+  status: GridStatus;
+}
+
+export interface GridRow {
+  client_id: number;
+  code: string | null;
+  name: string;
+  phone: string | null;
+  project: string | null;
+  block: string | null;
+  balance: Money;
+  monthly_installment: Money | null;
+  first_charge_date: string | null;
+  late: boolean;
+  late_months: number;
+  cells: GridCell[];
+  total_paid: Money;
+}
+
+export interface GridTotal {
+  period: string;
+  paid_amount: Money;
+  paid_clients: number;
+  owing_clients: number;
+  rate: Money;
+}
+
+/** GET /api/schedule/grid. Mirrors the backend's grid schema. */
+export interface PaymentGrid {
+  year: number;
+  as_of: string;
+  months: string[];
+  /** Every project, for the filter (not only those on screen). */
+  projects: string[];
+  rows: GridRow[];
+  totals: GridTotal[];
+}
