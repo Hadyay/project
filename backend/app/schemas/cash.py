@@ -51,6 +51,49 @@ class ReceiptDetail(ReceiptOut):
     cash_account_name: str | None = None
 
 
+class BulkReceiptLine(BaseModel):
+    client_id: int
+    amount: Decimal = Field(gt=0)
+    contract_id: int | None = None  # allocate against this contract's schedule
+    ref_no: str | None = Field(default=None, max_length=30)
+    cheque_no: str | None = Field(default=None, max_length=40)
+    notes: str | None = None
+
+
+class BulkReceiptCreate(BaseModel):
+    """Many receipts on one date into one till — the end-of-day entry of a
+    stack of paper vouchers. Everything but the client and amount is shared."""
+
+    receipt_date: date
+    cash_account_id: int
+    currency_id: int
+    exchange_rate: Decimal | None = Field(default=None, gt=0)
+    method: PaymentMethod = PaymentMethod.cash
+    post: bool = True
+    lines: list[BulkReceiptLine] = Field(min_length=1, max_length=1000)
+
+
+class BulkReceiptCreated(BaseModel):
+    line: int  # index into the request's `lines`
+    client_id: int
+    receipt_id: int
+    receipt_no: str
+    amount: Decimal
+
+
+class BulkReceiptFailure(BaseModel):
+    line: int
+    client_id: int
+    detail: str
+
+
+class BulkReceiptResult(BaseModel):
+    created: list[BulkReceiptCreated]
+    failures: list[BulkReceiptFailure]
+    count: int
+    total_amount: Decimal
+
+
 class PaymentCreate(BaseModel):
     payment_no: str | None = Field(default=None, max_length=40)
     ref_no: str | None = Field(default=None, max_length=30)

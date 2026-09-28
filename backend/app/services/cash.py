@@ -14,7 +14,7 @@ RECEIPT_PREFIX = "REC-"
 PAYMENT_PREFIX = "PAY-"
 
 
-def _cash_account(db: Session, account_id: int) -> Account:
+def cash_account(db: Session, account_id: int) -> Account:
     account = db.get(Account, account_id)
     if account is None:
         raise HTTPException(
@@ -43,7 +43,7 @@ def create_receipt(db: Session, data: ReceiptCreate, user: User | None = None) -
             detail="Client has no receivable account — cannot post a receipt",
         )
 
-    cash = _cash_account(db, data.cash_account_id)
+    cash = cash_account(db, data.cash_account_id)
 
     receipt = Receipt(
         receipt_no=data.receipt_no or next_number(db, Receipt.receipt_no, RECEIPT_PREFIX),
@@ -97,7 +97,7 @@ def create_payment(db: Session, data: PaymentCreate, user: User | None = None) -
             status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown beneficiary account"
         )
     accounts_service.ensure_postable(beneficiary)
-    cash = _cash_account(db, data.cash_account_id)
+    cash = cash_account(db, data.cash_account_id)
 
     if beneficiary.id == cash.id:
         raise HTTPException(

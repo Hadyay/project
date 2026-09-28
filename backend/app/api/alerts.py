@@ -13,6 +13,8 @@ from app.schemas.alerts import (
     AlertSettingsUpdate,
     AlertsReport,
     AlertsSummary,
+    BulkRemind,
+    BulkRemindResult,
     CycleOut,
     LateClientOut,
     ReminderMark,
@@ -74,6 +76,26 @@ def client_alert(db: DbSession, client_id: int, as_of: date | None = None) -> La
     return LateClientOut(**report.rows[0].__dict__) if report.rows else None
 
 
+def _current_period(db) -> str:
+    return reminders.cycle_for(date.today(), reminders.settings_row(db).alert_day).period
+
+
+def _mark(db, client_id: int, period: str, note: str | None, user) -> None:
+    """Record (or re-record) that the office reminded this client in `period`."""
+    mark = db.scalars(
+        select(ClientReminder).where(ClientReminder.client_id == client_id, ClientReminder.period == period)
+    ).one_or_none()
+    if mark is None:
+        mark = ClientReminder(client_id=client_id, period=period)
+        db.add(mark)
+    mark.note = note
+    mark.reminded_by = user.id
+    mark.reminded_at = func.now()
+    db.flush()
+    audit.record(db, table="client_reminders", record_id=mark.id, action="insert", user=user,
+                 old=None, new={"client_id": client_id, "period": period, "note": note})
+
+
 @router.post(
     "/clients/{client_id}/remind",
     response_model=Message,
@@ -82,21 +104,31 @@ def client_alert(db: DbSession, client_id: int, as_of: date | None = None) -> La
 def mark_reminded(db: DbSession, client_id: int, payload: ReminderMark, user: CurrentUser) -> Message:
     """Note that the office reminded this client in the current cycle."""
     get_or_404(db, Client, client_id, name="Client")
-    period = reminders.cycle_for(date.today(), reminders.settings_row(db).alert_day).period
-    mark = db.scalars(
-        select(ClientReminder).where(ClientReminder.client_id == client_id, ClientReminder.period == period)
-    ).one_or_none()
-    if mark is None:
-        mark = ClientReminder(client_id=client_id, period=period)
-        db.add(mark)
-    mark.note = payload.note
-    mark.reminded_by = user.id
-    mark.reminded_at = func.now()
-    db.flush()
-    audit.record(db, table="client_reminders", record_id=mark.id, action="insert", user=user,
-                 old=None, new={"client_id": client_id, "period": period, "note": payload.note})
+    period = _current_period(db)
+    _mark(db, client_id, period, payload.note, user)
     db.commit()
     return Message(detail=f"تم تسجيل التذكير لشهر {period}")
+
+
+@router.post(
+    "/remind/bulk",
+    response_model=BulkRemindResult,
+    dependencies=[Depends(require_perm("alerts.manage"))],
+)
+def mark_reminded_bulk(db: DbSession, payload: BulkRemind, user: CurrentUser) -> BulkRemindResult:
+    """Mark many clients reminded in the current cycle at once — after a round
+    of calls down the red list. Ids that are not (live) clients are returned
+    in `missing` rather than failing the rest."""
+    period = _current_period(db)
+    wanted = list(dict.fromkeys(payload.client_ids))
+    live = set(db.scalars(select(Client.id).where(Client.id.in_(wanted), ~Client.is_deleted)))
+    for client_id in wanted:
+        if client_id in live:
+            _mark(db, client_id, period, payload.note, user)
+    db.commit()
+    return BulkRemindResult(
+        period=period, count=len(live), missing=[i for i in wanted if i not in live]
+    )
 
 
 @router.delete(
@@ -105,7 +137,7 @@ def mark_reminded(db: DbSession, client_id: int, payload: ReminderMark, user: Cu
     dependencies=[Depends(require_perm("alerts.manage"))],
 )
 def unmark_reminded(db: DbSession, client_id: int, user: CurrentUser) -> Message:
-    period = reminders.cycle_for(date.today(), reminders.settings_row(db).alert_day).period
+    period = _current_period(db)
     mark = db.scalars(
         select(ClientReminder).where(ClientReminder.client_id == client_id, ClientReminder.period == period)
     ).one_or_none()

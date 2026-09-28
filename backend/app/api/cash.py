@@ -17,6 +17,10 @@ from app.models import (
     Receipt,
 )
 from app.schemas.cash import (
+    BulkReceiptCreate,
+    BulkReceiptCreated,
+    BulkReceiptFailure,
+    BulkReceiptResult,
     PaymentCreate,
     PaymentDetail,
     PaymentOut,
@@ -28,6 +32,7 @@ from app.schemas.common import Message, Page
 from app.services import audit
 from app.services import cash as cash_service
 from app.services import contracts as contracts_service
+from app.services import fx
 
 receipts_router = APIRouter(
     prefix="/api/receipts", tags=["receipts"], dependencies=[Depends(get_current_user)]
@@ -147,6 +152,73 @@ def create_receipt(db: DbSession, payload: ReceiptCreate, user: CurrentUser) -> 
     db.commit()
     db.refresh(receipt)
     return receipt
+
+
+@receipts_router.post(
+    "/bulk", response_model=BulkReceiptResult, dependencies=[Depends(require_perm("receipts.create"))],
+)
+def create_receipts_bulk(db: DbSession, payload: BulkReceiptCreate, user: CurrentUser) -> BulkReceiptResult:
+    """Many receipts at once. What every line shares — the till, the currency,
+    its rate on that date — is checked first, so a wrong till is one 400 and
+    nothing written. Each line then goes through the single-receipt path (GL,
+    allocation, audit) in its own savepoint: a line that fails (unknown
+    client, a contract of someone else) is reported and the rest are kept."""
+    cash_service.cash_account(db, payload.cash_account_id)
+    if db.get(Currency, payload.currency_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown currency_id {payload.currency_id}")
+    if payload.post and payload.exchange_rate is None:
+        fx.rate_for(db, payload.currency_id, payload.receipt_date)
+
+    created: list[BulkReceiptCreated] = []
+    failures: list[BulkReceiptFailure] = []
+    for index, line in enumerate(payload.lines):
+        try:
+            with db.begin_nested():
+                if line.contract_id is not None:
+                    contract = db.get(Contract, line.contract_id)
+                    if contract is None or contract.is_deleted or contract.client_id != line.client_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST, detail="العقد لا يخص هذا العميل"
+                        )
+                receipt = cash_service.create_receipt(
+                    db,
+                    ReceiptCreate(
+                        receipt_date=payload.receipt_date,
+                        client_id=line.client_id,
+                        contract_id=line.contract_id,
+                        cash_account_id=payload.cash_account_id,
+                        amount=line.amount,
+                        currency_id=payload.currency_id,
+                        exchange_rate=payload.exchange_rate,
+                        method=payload.method,
+                        cheque_no=line.cheque_no,
+                        ref_no=line.ref_no,
+                        notes=line.notes,
+                        post=payload.post,
+                    ),
+                    user,
+                )
+                audit.record(
+                    db, table="receipts", record_id=receipt.id, action="insert", user=user,
+                    new=audit.snapshot(receipt),
+                )
+        except HTTPException as exc:
+            failures.append(BulkReceiptFailure(line=index, client_id=line.client_id, detail=str(exc.detail)))
+            continue
+        created.append(
+            BulkReceiptCreated(
+                line=index, client_id=line.client_id, receipt_id=receipt.id,
+                receipt_no=receipt.receipt_no, amount=Decimal(receipt.amount),
+            )
+        )
+
+    db.commit()
+    return BulkReceiptResult(
+        created=created,
+        failures=failures,
+        count=len(created),
+        total_amount=sum((c.amount for c in created), Decimal(0)),
+    )
 
 
 @receipts_router.delete(

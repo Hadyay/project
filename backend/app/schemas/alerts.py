@@ -76,3 +76,14 @@ class AlertsSummary(BaseModel):
 
 class ReminderMark(BaseModel):
     note: str | None = Field(default=None, max_length=500)
+
+
+class BulkRemind(BaseModel):
+    client_ids: list[int] = Field(min_length=1, max_length=5000)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class BulkRemindResult(BaseModel):
+    period: str  # the cycle the marks were recorded for
+    count: int
+    missing: list[int]  # ids that are not live clients; nothing recorded for them
