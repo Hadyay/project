@@ -77,9 +77,14 @@ function StatementInner() {
     router.replace(`/statement?client=${id}`, { scroll: false });
   }
 
-  // Keep the chosen client in view in the list (after a reload, a link).
+  // Keep the chosen client in view in the list (after a reload, a link) —
+  // by scrolling the list alone: scrollIntoView would scroll the page too.
   useEffect(() => {
-    listRef.current?.querySelector(".st-item.on")?.scrollIntoView({ block: "nearest" });
+    const list = listRef.current;
+    const on = list?.querySelector<HTMLElement>(".st-item.on");
+    if (!list || !on) return;
+    const offset = on.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    if (offset < 0 || offset > list.clientHeight - on.offsetHeight) list.scrollTop += offset - list.clientHeight / 2;
   }, [clientId, rows.length]);
 
   return (
