@@ -795,3 +795,38 @@ td.gc.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
   .gc.before{background:none !important}
   .pick-bar{display:none}
 }
+
+/* ---------------------------------------------------------------- reports hub
+   Every report on one compact card, grouped by the question — the report
+   itself below it at the full width of the page. */
+.rep-hub{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;margin-bottom:18px;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;box-shadow:var(--shadow)
+}
+@media(max-width:1100px){.rep-hub{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.rep-hub{grid-template-columns:1fr}}
+.rep-group h6{font-size:12px;font-weight:700;color:var(--muted);margin:2px 8px 6px;letter-spacing:.2px}
+.rep-item{
+  display:flex;align-items:center;gap:9px;width:100%;padding:6px 8px;margin:1px 0;border:0;border-radius:8px;
+  background:none;color:var(--text);font:inherit;font-size:14px;text-align:start;cursor:pointer;text-decoration:none
+}
+.rep-item:hover{background:var(--hover)}
+.rep-item.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.rep-item .ri{
+  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;font-size:13px;
+  background:var(--surface-2);border:1px solid var(--border-soft);color:var(--muted)
+}
+.rep-item.on .ri{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.rep-go{margin-inline-start:auto;color:var(--muted);font-size:12px}
+[dir="rtl"] .rep-go{transform:scaleX(-1)}
+.rep-new{
+  margin-inline-start:auto;font-size:11px;font-weight:700;padding:0 7px;border-radius:999px;
+  background:var(--success-soft);color:var(--success);border:1px solid var(--success-line)
+}
+.rate-cell{display:flex;align-items:center;gap:8px;min-width:150px}
+.rate-bar{flex:1;height:8px;border-radius:999px;background:#E2E8F0;overflow:hidden}
+.rate-bar i{display:block;height:100%;border-radius:999px}
+.rate-bar i.good{background:#15803D}
+.rate-bar i.mid{background:#D97706}
+.rate-bar i.low{background:#DC2626}
+.rs-note{font-size:12.5px;color:#444;margin:12px 2px 0;line-height:1.7}

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
 
 import { MonthlyReportView, SalesReportView } from "@/components/ExtraReports";
 import { ExportButtons, PrintFooter, ResultCount } from "@/components/Filters";
 import { SearchPanel, type SearchSpec, type SearchValues } from "@/components/SearchPanel";
 import { ReportFirm, ReportSheet, RsPeriod } from "@/components/ReportSheet";
-import { Async, Card, Doc, Empty, Head, Pill, Tile } from "@/components/ui";
+import { Async, Card, Doc, Empty, Field, Head, Pill, Tile } from "@/components/ui";
 import { api } from "@/lib/api";
 import {
   METHOD_AR,
@@ -27,33 +27,76 @@ import type {
   AvailabilityRow,
   Client,
   ClientBalancesReport as BalancesData,
+  CollectionReport as CollectionReportData,
   Page,
   PaymentDetail,
   ReceiptDetail,
   TrialBalanceRow,
 } from "@/lib/types";
+import { useLang } from "@/lib/i18n";
 import { ALL_ROWS } from "@/lib/paging";
 import { useApi } from "@/lib/useApi";
 
-/** Screens that are reports in their own right. */
-const LINKS = [
-  { href: "/trial", icon: "⚖", title: "ميزان المراجعة", body: "أرصدة كل الحسابات أو حركة فترة، مع الإجماليات." },
-  { href: "/statement", icon: "▥", title: "كشف حساب عميل", body: "حركة حساب العميل بالتفصيل مع رصيد متسلسل." },
-  { href: "/schedule", icon: "◷", title: "الدفعات المتأخرة", body: "الأقساط التي تجاوزت الاستحقاق، بالأقدم." },
-  { href: "/accounts", icon: "☰", title: "دفتر الأستاذ", body: "حركة أي حساب على حدة مع رصيد ما قبل الفترة." },
-  { href: "/journal", icon: "≡", title: "دفتر اليومية", body: "كل القيود مع تفاصيل الطرفين." },
+type ReportKey = "balances" | "cash" | "collection" | "sales" | "monthly" | "availability";
+
+interface ReportItem {
+  /** Opens here, below the picker… */
+  key?: ReportKey;
+  /** …or is a screen of its own. */
+  href?: string;
+  icon: string;
+  title: string;
+  /** The question the report answers — shown under its title. */
+  body: string;
+  isNew?: boolean;
+}
+
+/** Every report, grouped by what the office is asking. */
+const GROUPS: { label: string; items: ReportItem[] }[] = [
+  {
+    label: "مالية",
+    items: [
+      { href: "/trial", icon: "⚖", title: "ميزان المراجعة", body: "هل الدفاتر متوازنة، وما رصيد كل حساب؟" },
+      {
+        key: "balances",
+        icon: "◉",
+        title: "كشف الأرصدة",
+        body: "كم على كل عميل وكم له — حسب عملة الحساب، مع المشروع والبلوك والطابق.",
+      },
+      { key: "cash", icon: "⇅", title: "حركة الصندوق", body: "ما دخل الصندوق وما خرج منه خلال فترة، وصافي الحركة." },
+      { href: "/accounts", icon: "☰", title: "دفتر الأستاذ", body: "حركة أي حساب على حدة مع رصيد ما قبل الفترة." },
+      { href: "/journal", icon: "≡", title: "دفتر اليومية", body: "كل القيود مع تفاصيل الطرفين." },
+    ],
+  },
+  {
+    label: "التحصيل",
+    items: [
+      {
+        key: "collection",
+        icon: "◔",
+        title: "تقرير التحصيل الشهري",
+        body: "كم عميلاً مديناً دفع كل شهر، وكم لم يدفع، وكم حُصِّل.",
+        isNew: true,
+      },
+      { href: "/alerts", icon: "🔔", title: "العملاء المتأخرون", body: "من لم يدفع دفعة هذا الشهر، مع هاتفه ورصيده." },
+      { href: "/schedule", icon: "◷", title: "جدول الدفعات", body: "دفعات كل عميل شهراً بشهر على مدار السنة." },
+      { href: "/statement", icon: "▥", title: "كشف حساب عميل", body: "حركة حساب عميل بالتفصيل مع رصيد متسلسل." },
+    ],
+  },
+  {
+    label: "المبيعات",
+    items: [
+      { key: "sales", icon: "▭", title: "تقرير المبيعات", body: "كل عملية بيع: التاريخ والعميل والمبلغ." },
+      { key: "monthly", icon: "▤", title: "الملخّص الشهري", body: "المبيعات والمقبوض والمصروف شهراً بشهر." },
+    ],
+  },
+  {
+    label: "العقارات",
+    items: [{ key: "availability", icon: "▦", title: "توافر الوحدات", body: "كل الوحدات وحالتها وسعرها المعروض." }],
+  },
 ];
 
-/** Reports that open here, below the cards. */
-const INLINE = [
-  { key: "balances", icon: "◉", title: "كشف الأرصدة", body: "أرصدة كل العملاء حسب عملة الحساب، مع المشروع والبلوك والطابق." },
-  { key: "cash", icon: "⇅", title: "حركة الصندوق", body: "المقبوض والمصروف خلال فترة، وصافي الحركة." },
-  { key: "sales", icon: "▭", title: "تقرير المبيعات", body: "كل عملية بيع: التاريخ والعميل والمبلغ." },
-  { key: "monthly", icon: "▤", title: "الملخّص الشهري", body: "المبيعات والمقبوض والمصروف شهراً بشهر." },
-  { key: "availability", icon: "▦", title: "توافر الوحدات", body: "كل الوحدات وحالتها وسعرها المعروض." },
-] as const;
-
-type ReportKey = (typeof INLINE)[number]["key"];
+const INLINE = GROUPS.flatMap((g) => g.items).filter((item): item is ReportItem & { key: ReportKey } => !!item.key);
 
 export default function ReportsPage() {
   return (
@@ -64,64 +107,234 @@ export default function ReportsPage() {
 }
 
 function ReportsInner() {
-  // Opens on a report, not on an empty grid of cards: ?r= when a link names
-  // one (the dashboard does), else كشف الأرصدة — the one an office opens first.
+  const router = useRouter();
+  // Opens on a report, not on an empty page: ?r= when a link names one (the
+  // dashboard does), else كشف الأرصدة — the one an office opens first.
   const requested = useSearchParams().get("r");
-  const [openReport, setOpenReport] = useState<ReportKey>(
-    INLINE.some((report) => report.key === requested) ? (requested as ReportKey) : "balances",
-  );
-  const current = INLINE.find((report) => report.key === openReport);
+  const current = INLINE.find((report) => report.key === requested) ?? INLINE[0];
+
+  function open(key: ReportKey) {
+    router.replace(`/reports?r=${key}`, { scroll: false });
+  }
 
   return (
     <>
-      <Head
-        title="التقارير"
-        subtitle={current ? `${current.title} — ${current.body}` : "التقارير المحاسبية والتشغيلية"}
-      />
+      <Head title={current.title} subtitle={current.body} />
 
-      <div className="grid-3 no-print" style={{ marginBottom: 18 }}>
-        {LINKS.map((report) => (
-          <Link
-            key={report.href}
-            href={report.href}
-            className="rep"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <div className="ric">{report.icon}</div>
-            <div>
-              <h4>{report.title}</h4>
-              <p>{report.body}</p>
-            </div>
-          </Link>
+      <nav className="rep-hub no-print" aria-label="التقارير">
+        {GROUPS.map((group) => (
+          <div className="rep-group" key={group.label}>
+            <h6>{group.label}</h6>
+            {group.items.map((item) =>
+              item.href ? (
+                <Link key={item.title} className="rep-item" href={item.href} title={item.body}>
+                  <span className="ri">{item.icon}</span>
+                  {item.title}
+                  <span className="rep-go">↗</span>
+                </Link>
+              ) : (
+                <button
+                  key={item.title}
+                  className={`rep-item${item.key === current.key ? " on" : ""}`}
+                  onClick={() => open(item.key!)}
+                  title={item.body}
+                  aria-pressed={item.key === current.key}
+                >
+                  <span className="ri">{item.icon}</span>
+                  {item.title}
+                  {item.isNew ? <span className="rep-new">جديد</span> : null}
+                </button>
+              ),
+            )}
+          </div>
         ))}
+      </nav>
 
-        {INLINE.map((report) => (
-          <button
-            key={report.key}
-            className="rep"
-            style={{
-              textAlign: "start",
-              font: "inherit",
-              borderColor: openReport === report.key ? "var(--brass)" : undefined,
-              boxShadow: openReport === report.key ? "0 0 0 2px var(--brass-soft)" : undefined,
-            }}
-            onClick={() => setOpenReport(report.key)}
-            aria-pressed={openReport === report.key}
-          >
-            <div className="ric">{report.icon}</div>
-            <div>
-              <h4>{report.title}</h4>
-              <p>{report.body}</p>
-            </div>
-          </button>
-        ))}
+      {current.key === "balances" ? <ClientBalancesReport /> : null}
+      {current.key === "cash" ? <CashMovementReport /> : null}
+      {current.key === "collection" ? <CollectionReport /> : null}
+      {current.key === "sales" ? <SalesReportView /> : null}
+      {current.key === "monthly" ? <MonthlyReportView /> : null}
+      {current.key === "availability" ? <AvailabilityReport /> : null}
+    </>
+  );
+}
+
+/* ------------------------------------------------ تقرير التحصيل الشهري */
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function periodNow(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+function periodEnd(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  return `${period}-${pad2(new Date(y, m, 0).getDate())}`;
+}
+
+/** Month by month: of the clients who owed when the month began, how many
+ *  paid and how many did not, and what came in (GET /api/reports/collection —
+ *  the same figures as the dashboard ring and the alerts list). */
+function CollectionReport() {
+  const { lang } = useLang();
+  const [months, setMonths] = useState("12");
+  const [end, setEnd] = useState(periodNow());
+
+  const state = useApi(
+    useCallback(
+      () =>
+        api.get<CollectionReportData>("/api/reports/collection", {
+          months: Number(months),
+          as_of: periodEnd(end),
+        }),
+      [months, end],
+    ),
+    [months, end],
+  );
+  const rows = state.data?.months ?? [];
+  const label = (period: string) => {
+    const [y, m] = period.split("-").map(Number);
+    return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "ar-LB-u-nu-latn", { month: "long", year: "numeric" }).format(
+      new Date(y, m - 1, 1),
+    );
+  };
+
+  return (
+    <>
+      <div className="filters no-print">
+        <Field label="حتى شهر">
+          <input className="mono-in" type="month" value={end} max={periodNow()} onChange={(e) => e.target.value && setEnd(e.target.value)} />
+        </Field>
+        <Field label="عدد الأشهر">
+          <select value={months} onChange={(e) => setMonths(e.target.value)}>
+            {["6", "12", "24", "36"].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="spacer" style={{ flex: 1 }} />
+        <ExportButtons
+          filename={`collection-${end}`}
+          headers={["الشهر", "مدينون في بداية الشهر", "دفعوا", "لم يدفعوا", "نسبة من دفع %", "المحصّل", "المتوقّع"]}
+          disabled={rows.length === 0}
+          rows={() => rows.map((m) => [m.period, m.owing_at_start, m.paid, m.late, m.rate, m.amount_collected, m.expected ?? ""])}
+        />
       </div>
 
-      {openReport === "balances" ? <ClientBalancesReport /> : null}
-      {openReport === "cash" ? <CashMovementReport /> : null}
-      {openReport === "sales" ? <SalesReportView /> : null}
-      {openReport === "monthly" ? <MonthlyReportView /> : null}
-      {openReport === "availability" ? <AvailabilityReport /> : null}
+      <Async state={state}>
+        {(data) => {
+          const collected = data.months.reduce((sum, m) => sum + num(m.amount_collected), 0);
+          const counted = data.months.filter((m) => m.owing_at_start > 0);
+          const avg = counted.length ? counted.reduce((sum, m) => sum + num(m.rate), 0) / counted.length : 0;
+          const best = [...counted].sort((a, b) => num(b.rate) - num(a.rate))[0];
+          return (
+            <ReportSheet>
+              <ReportFirm />
+              <div className="rs-head">
+                <div className="rs-box rs-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div className="rs-title" style={{ border: 0, margin: 0, padding: 0, fontSize: 19 }}>
+                    تقرير التحصيل الشهري
+                  </div>
+                </div>
+                <div className="rs-side">
+                  <RsPeriod from={data.months[0] ? `${data.months[0].period}-01` : null} to={data.as_of} />
+                </div>
+              </div>
+
+              <div className="tbl-wrap">
+                <table className="rs-table coll-table">
+                  <thead>
+                    <tr>
+                      <th>الشهر</th>
+                      <th className="num">مدينون في بداية الشهر</th>
+                      <th className="num">دفعوا</th>
+                      <th className="num">لم يدفعوا</th>
+                      <th>نسبة من دفع</th>
+                      <th className="num">المحصّل ($)</th>
+                      <th className="num">المتوقّع ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...data.months].reverse().map((m) => {
+                      const rate = num(m.rate);
+                      return (
+                        <tr key={m.period}>
+                          <td translate="no">
+                            <b>{label(m.period)}</b>
+                          </td>
+                          <td className="num">
+                            <span className="mono">{count(m.owing_at_start)}</span>
+                          </td>
+                          <td className="num">
+                            <b className="mono">{count(m.paid)}</b>
+                          </td>
+                          <td className="num">
+                            <span className="mono">{count(m.late)}</span>
+                          </td>
+                          <td>
+                            <span className="rate-cell">
+                              <span className="rate-bar no-print">
+                                <i
+                                  className={rate >= 70 ? "good" : rate >= 40 ? "mid" : "low"}
+                                  style={{ width: `${Math.min(100, rate)}%` }}
+                                />
+                              </span>
+                              <b className="mono">{m.owing_at_start ? `${rate.toFixed(1)}%` : "—"}</b>
+                            </span>
+                          </td>
+                          <td className="num">
+                            <span className="mono">{money(m.amount_collected, 0)}</span>
+                          </td>
+                          <td className="num">
+                            <span className="mono">{m.expected !== null ? money(m.expected, 0) : "—"}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4}>{`الإجمالي — ${count(data.months.length)} شهراً`}</td>
+                      <td>
+                        <span className="mono">{`${avg.toFixed(1)}%`}</span> <span className="sub">متوسط</span>
+                      </td>
+                      <td className="num">
+                        <span className="mono">{money(collected, 0)}</span>
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="rs-foot">
+                <div className="rs-box rs-upto">
+                  <span className="rs-l">إجمالي المحصّل :</span>
+                  <b className="mono">{money(collected)}</b>
+                </div>
+                <div className="rs-box rs-upto">
+                  <span className="rs-l">متوسط نسبة من دفع :</span>
+                  <b className="mono">{`${avg.toFixed(1)}%`}</b>
+                </div>
+                {best ? (
+                  <div className="rs-box rs-upto">
+                    <span className="rs-l">أفضل شهر :</span>
+                    <b translate="no">{`${label(best.period)} — ${num(best.rate).toFixed(1)}%`}</b>
+                  </div>
+                ) : null}
+              </div>
+              <p className="rs-note">
+                المدين في بداية الشهر: رصيده في أول يوم من الشهر أكبر من حدّ التنبيه. «دفع»: سجّل وصلاً خلال الشهر —
+                بقيمة القسط الشهري على الأقل حين يكون محدّداً على بطاقته. المحصّل: كل الوصولات المؤرّخة في الشهر.
+              </p>
+            </ReportSheet>
+          );
+        }}
+      </Async>
     </>
   );
 }
